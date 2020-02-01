@@ -18,7 +18,6 @@ class MetaInfo:
         "fields_map",
         "unique_together",
         "pk_attr",
-        "generated_db_fields",
         "table_description",
         "pk",
         "db_pk_field",
@@ -35,7 +34,6 @@ class MetaInfo:
         self.fields_db_projection_reverse = {}  # type: Dict[str,str]
         self.fields_map = {}  # type: Dict[str, fields.Field]
         self.pk_attr = getattr(meta, "pk_attr", "")  # type: str
-        self.generated_db_fields = None  # type: Tuple[str]  # type: ignore
         self.table_description = getattr(meta, "table_description", "")  # type: str
         self.pk = None  # type: fields.Field  # type: ignore
         self.db_pk_field = ""  # type: str
@@ -59,6 +57,10 @@ class MetaInfo:
         """
         Finalise the model after it had been fully loaded.
         """
+        if not self.abstract and not self.pk_attr:
+            raise Exception('model must have pk or be abstract.')
+        if self.pk_attr:
+            self.finalise_pk()
         self.finalise_fields()
 
     def finalise_fields(self) -> None:
@@ -68,13 +70,6 @@ class MetaInfo:
             value: key for key, value in self.fields_db_projection.items()
         }
 
-        generated_fields = []
-        for field in self.fields_map.values():
-            if not field.generated:
-                continue
-            generated_fields.append(field.source_field or field.model_field_name)
-        self.generated_db_fields = tuple(generated_fields)  # type: ignore
-
 
 class ModelMeta(type):
     __slots__ = ()
@@ -82,18 +77,23 @@ class ModelMeta(type):
     def __new__(mcs, name: str, bases, attrs: dict, *args, **kwargs):
         fields_db_projection = {}  # type: Dict[str,str]
         fields_map = {}  # type: Dict[str, fields.Field]
-        meta_class = attrs.get("Meta", type("Meta", (), {}))
-        pk_attr = "id"
+        meta_class = attrs.pop("Meta", type("Meta", (), {}))
 
         meta = MetaInfo(meta_class)
 
         fields_map = {}
         fields_db_projection = {}
 
+        pk_attr = None
+
         for key, value in attrs.items():
             if isinstance(value, fields.Field):
                 fields_map[key] = value
                 value.model_field_name = key
+                if value.pk:
+                    if pk_attr != None:
+                        raise Exception('duplicated pk not allowed.')
+                    pk_attr = key
                 fields_db_projection[key] = value.source_field or key
         
         for key in fields_map.keys():
@@ -104,15 +104,22 @@ class ModelMeta(type):
             if not _meta:
                 continue
             fields_map.update(deepcopy(_meta.fields_map))
+            fields_db_projection.update(deepcopy(_meta.fields_db_projection))
+            if _meta.pk_attr:
+                if pk_attr != None:
+                    raise Exception('duplicated pk not allowed.')
+                else:
+                    pk_attr = _meta.pk_attr
 
         meta.fields_map = fields_map
         meta.fields_db_projection = fields_db_projection
-        meta.pk_attr = pk_attr
         if not fields_map:
             meta.abstract = True
+        meta.pk_attr = pk_attr or ""
 
+        attrs["_meta"] = meta
         new_class = super().__new__(mcs, name, bases, attrs)  # type: "Model"  # type: ignore
-        meta.finalise_fields()
+        meta.finalise_model()
         return new_class
 
 
@@ -136,10 +143,10 @@ class Model(metaclass=ModelMeta):
         """
         pass
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, load_from_db=False, **kwargs) -> None:
         # self._meta is a very common attribute lookup, lets cache it.
         meta = self._meta
-        self._saved_in_db = meta.pk_attr in kwargs and meta.pk.generated
+        self._saved_in_db = load_from_db
 
         # Assign values and do type conversions
         passed_fields = {*kwargs.keys()}
@@ -151,7 +158,38 @@ class Model(metaclass=ModelMeta):
                 setattr(self, key, field_object.default())
             else:
                 setattr(self, key, field_object.default)
-
+        
+        self._snapshot_data = {}
+    
+    def make_snapshot(self):
+        new_data = dict()
+        for key in self._meta.fields_db_projection.keys():
+            new_data[key] = deepcopy(getattr(self, key))
+        self._snapshot_data = new_data
+    
+    @property
+    def changed(self):
+        now_data = dict()
+        for key in self._meta.fields_db_projection.keys():
+            now_data[key] = getattr(self, key)
+        diff = self.dict_diff(now_data, self._snapshot_data)
+        return diff.keys()
+    
+    def dict_diff(self, first, second):
+        """ Return a dict of keys that differ with another config object.  If a value is
+            not found in one fo the configs, it will be represented by None.
+            @param first:   Fist dictionary to diff.
+            @param second:  Second dicationary to diff.
+            @return diff:   Dict of Key => (first.val, second.val)
+        """
+        diff = {}
+        # Check all keys in first dict
+        for key in first.keys():
+            if key not in second:
+                diff[key] = (first[key], None)
+            elif (first[key] != second[key]):
+                diff[key] = (first[key], second[key])
+        return diff
 
     def __str__(self) -> str:
         return "<{}>".format(self.__class__.__name__)

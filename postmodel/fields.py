@@ -29,7 +29,6 @@ class Field:
     __slots__ = (
         "type",
         "source_field",
-        "generated",
         "pk",
         "default",
         "null",
@@ -45,7 +44,6 @@ class Field:
         self,
         type=None,  # pylint: disable=W0622
         source_field: Optional[str] = None,
-        generated: bool = False,
         pk: bool = False,
         null: bool = False,
         default: Any = None,
@@ -57,7 +55,6 @@ class Field:
     ) -> None:
         self.type = type
         self.source_field = source_field
-        self.generated = generated
         self.pk = pk
         self.default = default
         self.null = null
@@ -79,7 +76,7 @@ class Field:
 
     @property
     def required(self):
-        return self.default is None and not self.null and not self.generated
+        return self.default is None and not self.null
 
 
 class IntField(Field):
@@ -91,8 +88,6 @@ class IntField(Field):
     """
 
     def __init__(self, pk: bool = False, **kwargs) -> None:
-        if pk:
-            kwargs["generated"] = bool(kwargs.get("generated", True))
         super().__init__(int, pk=pk, **kwargs)
 
 
@@ -105,8 +100,6 @@ class BigIntField(Field):
     """
 
     def __init__(self, pk: bool = False, **kwargs) -> None:
-        if pk:
-            kwargs["generated"] = bool(kwargs.get("generated", True))
         super().__init__(int, pk=pk, **kwargs)
 
 

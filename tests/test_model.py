@@ -8,7 +8,8 @@ def test_model_1():
         content = fields.TextField()
     
     assert Foo._meta != None
-
+    assert len(Foo._meta.fields_map) == 2
+    
     class FooBar(Foo):
         bar_content = fields.TextField()
 
