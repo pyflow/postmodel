@@ -1,8 +1,6 @@
-import asyncio
-import logging
-from typing import Any, List, Optional, Sequence, Tuple, Type, Union, Set
 
-from pypika import Query
+from typing import Any, List, Optional, Sequence, Tuple, Type, Union, Set
+import copy
 
 class BaseSQLDBClient:
     def __init__(self, connection_name: str, **kwargs) -> None:
@@ -44,3 +42,26 @@ class BaseSQLDBClient:
         raise NotImplementedError()  # pragma: nocoverage
 
 
+class BaseSQLDBMapper(object):
+    def __init__(self, model, client):
+        self.model = model
+        self.client = client
+    
+    async def create_table(self):
+        raise NotImplementedError()
+
+    async def insert(self, data):
+        raise NotImplementedError()
+
+class BaseSQLDBEngine(object):
+    mapper_class = BaseSQLDBMapper
+    client_class = BaseSQLDBClient
+    default_config = {}
+    default_parameters = {}
+
+    def __init__(self, name, config, parameters={}):
+        self.name = name
+        self.config = copy.deepcopy(self.default_config)
+        self.config.update(config)
+        self.parameters = copy.deepcopy(self.default_parameters)
+        self.parameters.update(parameters)

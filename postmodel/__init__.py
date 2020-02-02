@@ -7,28 +7,27 @@ if sys.version_info < (3, 6):  # pragma: nocoverage
     raise RuntimeError("Postmodel requires Python 3.6")
 
 import asyncio
+import importlib
 from typing import Any, Coroutine, Dict, List, Optional, Tuple, Type, Union, cast
 
 from postmodel.model import Model
 
-import urllib.parse as urlparse
+from urllib.parse import urlparse, parse_qs
 import uuid
 
 from postmodel.exceptions import ConfigurationError
 
 
 class Postmodel:
-    _connections = {} 
+    ENGINES_CLASS = {
+        'postgres': ('postmodel.sqldb.postgres', 'PostgresEngine'),
+    }
+    _engines = {} 
     _inited = False
 
     @classmethod
-    def get_connection(cls, connection_name):
-        """
-        Returns the connection by name.
-
-        :raises KeyError: If connection name does not exist.
-        """
-        return cls._connections[connection_name]
+    def get_engine(cls, egnine_name):
+        return cls._engines[egnine_name]
 
     @classmethod
     async def init(
@@ -39,26 +38,63 @@ class Postmodel:
         modules = [],
     ) -> None:
         if cls._inited:
-            await cls.close_connections()
+            await cls.close_engines()
 
-        cls._connections['default'] = default_db_url
+        engine_name, config, parameters = cls._parse_db_url(default_db_url)
 
-        cls._connections.update(extra_db_urls)
+        cls._engines['default'] = cls._init_engine(engine_name, config, parameters)
+
+        for key, value in extra_db_urls.items():
+            engine_name, config, parameters = cls._parse_db_url(value)
+            cls._engines[key] = cls._init_engine(engine_name, config, parameters)
 
         cls._inited = True
+    
 
     @classmethod
-    async def close_connections(cls) -> None:
-        """
-        Close all connections cleanly.
+    def _parse_db_url(cls, db_url):
+        url = urlparse(db_url)
+        engine_name = url.scheme
+        if engine_name not in cls.ENGINES_CLASS:
+            raise ConfigurationError(f"Unknown DB scheme: {engine_name}")
 
-        It is required for this to be called on exit,
-        else your event loop may never complete
-        as it is waiting for the connections to die.
-        """
-        for connection in cls._connections.values():
-            await connection.close()
-        cls._connections = {}
+        config = dict(
+            hostname = url.hostname,
+            username = url.username or None,
+            password = url.password or None
+        )
+        try:
+            if url.port:
+                config['port'] = int(url.port)
+        except ValueError:
+            raise ConfigurationError("Port is not an integer")
+        
+        config['db_path'] = url.path.lstrip('/')
+
+        params: dict = {}
+
+        for key, ValueError in parse_qs(url.query).items():
+            params[key] = value
+
+        return engine_name, config, params
+
+    @classmethod
+    def _init_engine(cls, engine_name, config, parameters):
+        db_engine_module, db_engine_class = cls.ENGINES_CLASS[engine_name]
+        engine_module = importlib.import_module(db_engine_module)
+
+        try:
+            engine_class = getattr(engine_module, db_engine_class)  # type: ignore
+        except AttributeError:
+            raise ConfigurationError(f'Backend for engine "{engine_name}" does not implement db client')
+
+        return engine_class(engine_name, config, parameters)
+
+    @classmethod
+    async def close_engines(cls) -> None:
+        for engine in cls._engines.values():
+            await engine.close()
+        cls._engines = {}
 
 
 
@@ -74,7 +110,7 @@ def run_async(coro: Coroutine) -> None:
         async def do_stuff():
             await Postmodel.init(
                 db_url='sqlite://db.sqlite3',
-                models={'models': ['app.models']}
+                modules=['app.models']
             )
 
             ...
@@ -85,5 +121,5 @@ def run_async(coro: Coroutine) -> None:
     try:
         loop.run_until_complete(coro)
     finally:
-        loop.run_until_complete(Postmodel.close_connections())
+        loop.run_until_complete(Postmodel.close_engines())
 
