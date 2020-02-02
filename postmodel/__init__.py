@@ -29,7 +29,7 @@ class Postmodel:
     _inited = False
 
     @classmethod
-    def get_engine(cls, egnine_name):
+    def get_engine(cls, egnine_name='default'):
         return cls._engines[egnine_name]
 
     @classmethod
