@@ -8,6 +8,8 @@ if sys.version_info < (3, 6):  # pragma: nocoverage
 
 import asyncio
 import importlib
+import inspect
+import warnings
 from typing import Any, Coroutine, Dict, List, Optional, Tuple, Type, Union, cast
 
 from postmodel.model import Model
@@ -22,7 +24,8 @@ class Postmodel:
     ENGINES_CLASS = {
         'postgres': ('postmodel.sqldb.postgres', 'PostgresEngine'),
     }
-    _engines = {} 
+    _engines = {}
+    _models = {}
     _inited = False
 
     @classmethod
@@ -38,7 +41,7 @@ class Postmodel:
         modules = [],
     ) -> None:
         if cls._inited:
-            await cls.close_engines()
+            await cls._reset()
 
         engine_name, config, parameters = cls._parse_db_url(default_db_url)
 
@@ -47,6 +50,10 @@ class Postmodel:
         for key, value in extra_db_urls.items():
             engine_name, config, parameters = cls._parse_db_url(value)
             cls._engines[key] = cls._init_engine(engine_name, config, parameters)
+
+        for module in modules:
+            models = cls._load_models(module)
+            cls._models.update(models)
 
         cls._inited = True
     
@@ -90,6 +97,52 @@ class Postmodel:
 
         return engine_class(engine_name, config, parameters)
 
+    @classmethod
+    def _load_models(cls, module_name):
+        module = importlib.import_module(module_name)
+        models = {}
+        model_names = getattr(module, "__models__", None)
+
+        if model_names:
+            if not isinstance(model_names, List):
+                raise Exception('__models__ must be list of model names')
+            possible_models = [(model_name, getattr(module, model_name)) for model_name in model_names]
+        else:
+            possible_models = [(attr_name, getattr(module, attr_name)) for attr_name in dir(module)]
+        
+        for name, value in possible_models:
+            if inspect.isclass(value) and issubclass(value, Model) and not value._meta.abstract:
+                models['{}.{}'.format(module_name, name)] = value
+
+        if not models:
+            warnings.warn(f'Module "{module_name}" has no models', RuntimeWarning, stacklevel=4)
+
+        return models
+
+    @classmethod
+    async def generate_schemas(cls, safe = True) -> None:
+        """
+        Generate schemas according to models provided to ``.init()`` method.
+        Will fail if schemas already exists, so it's not recommended to be used as part
+        of application workflow
+
+        Parameters
+        ----------
+        safe:
+            When set to true, creates the table only when it does not already exist.
+        """
+        if not cls._inited:
+            raise ConfigurationError("You have to call .init() first before generating schemas")
+        for model in cls._models:
+            pass
+    
+    @classmethod
+    async def _reset(cls):
+        await cls.close_engines()
+        cls._engines = {}
+        cls._models = {}
+        cls._inited = False
+    
     @classmethod
     async def close_engines(cls) -> None:
         for engine in cls._engines.values():

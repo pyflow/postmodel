@@ -53,6 +53,7 @@ class BaseSQLDBMapper(object):
     async def insert(self, data):
         raise NotImplementedError()
 
+
 class BaseSQLDBEngine(object):
     mapper_class = BaseSQLDBMapper
     client_class = BaseSQLDBClient
