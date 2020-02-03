@@ -3,30 +3,14 @@ from typing import Any, List, Optional, Sequence, Tuple, Type, Union, Set
 import copy
 
 class BaseSQLDBClient:
-    def __init__(self, name, config, parameters={}) -> None:
+    def __init__(self, name, connection) -> None:
         self.name = name
-        self.config = config
-        self.parameters = parameters
-
-    async def create_connection(self, with_db: bool) -> None:
-        raise NotImplementedError()  # pragma: nocoverage
-    
-    async def init(self):
-        raise NotImplementedError()
+        self.connection = connection
 
     async def close(self) -> None:
         raise NotImplementedError()  # pragma: nocoverage
 
-    async def db_create(self) -> None:
-        raise NotImplementedError()  # pragma: nocoverage
-
-    async def db_delete(self) -> None:
-        raise NotImplementedError()  # pragma: nocoverage
-
-    def acquire_connection(self):
-        raise NotImplementedError()  # pragma: nocoverage
-
-    def _in_transaction(self):
+    def in_transaction(self):
         raise NotImplementedError()  # pragma: nocoverage
 
     async def execute_insert(self, query: str, values: list) -> Any:
@@ -71,19 +55,24 @@ class BaseSQLDBEngine(object):
         self.config.update(config)
         self.parameters = copy.deepcopy(self.default_parameters)
         self.parameters.update(parameters)
-        self._client = None
     
     @property
     def client(self):
         return self._client
 
     async def init(self):
-        if self._client:
-            return
-        self._client = self.client_class(self.name, config=self.config, parameters=self.parameters)
-        await self._client.init()
+        pass
     
     async def close(self):
         if not self._client:
             return
         await self._client.close()
+    
+    async def db_create(self) -> None:
+        raise NotImplementedError()  # pragma: nocoverage
+
+    async def db_delete(self) -> None:
+        raise NotImplementedError()  # pragma: nocoverage
+    
+    def acquire(self):
+        raise NotImplementedError()  # pragma: nocoverage

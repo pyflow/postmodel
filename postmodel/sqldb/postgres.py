@@ -1,12 +1,22 @@
 
-from .engine import BaseSQLDBEngine, BaseSQLDBClient, BaseSQLDBMapper
+from .base import BaseSQLDBEngine, BaseSQLDBClient, BaseSQLDBMapper
 import asyncio
 import asyncpg
 from postmodel.exceptions import OperationalError, DBConnectionError
 
 class PostgresClient(BaseSQLDBClient):
+    pass
+
+
+class PostgresEngine(BaseSQLDBEngine):
+    client_class = PostgresClient
+    default_config = {
+        'min_size': 1,
+        'max_size': 30,
+    }
+     
     def __init__(self, name,  config, parameters={}):
-        super(PostgresClient, self).__init__(name, config=config, parameters=parameters)
+        super(PostgresEngine, self).__init__(name, config=config, parameters=parameters)
         self.user = self.config['username']
         self.password = self.config['password']
         self.database = self.config['db_path']
@@ -22,18 +32,7 @@ class PostgresClient(BaseSQLDBClient):
             }
         self._pool = None
         self._db_url = f'postgresql://{self.user}:{self.password}@{self.host}:{self.port}/'
-
-    async def init(self, with_db=True) -> None:
-        if self._pool:
-            return
-        try:
-            self._pool = await asyncpg.create_pool(None, password=self.password, **self._conn_params)
-        except asyncpg.InvalidCatalogNameError:
-            await self.db_create()
-            self._pool = await asyncpg.create_pool(None, password=self.password, **self._conn_params)
-        except:
-            raise DBConnectionError(f"Can't establish connection to database {self.database}")
-
+    
     async def close(self) -> None:
         await self._close()
     
@@ -61,10 +60,3 @@ class PostgresClient(BaseSQLDBClient):
         except Exception as e:  # pragma: nocoverage
             raise OperationalError(f"drop database {self.database}, error: {str(e)}")
         await conn.close()
-
-class PostgresEngine(BaseSQLDBEngine):
-    client_class = PostgresClient
-    default_config = {
-        'min_size': 1,
-        'max_size': 30,
-    }
