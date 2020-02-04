@@ -10,6 +10,6 @@ class Foo(Model):
 async def create_db():
     await Postmodel.init('postgres://postgres:@127.0.0.1:54320/test_db', modules=[__name__])
     engine = Postmodel.get_engine()
-    await engine.init()
+    print('inited.', type(engine))
 
 run_async(create_db())

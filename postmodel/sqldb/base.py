@@ -1,34 +1,56 @@
 
 from typing import Any, List, Optional, Sequence, Tuple, Type, Union, Set
 import copy
+import asyncio
 
-class BaseSQLDBClient:
-    def __init__(self, name, connection) -> None:
-        self.name = name
+current_transaction_map: dict = {}
+
+class NestedTransaction:
+    async def __aenter__(self):
+        pass
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return False
+
+class TransactedConnectionProxy:
+    def __init__(self, connection):
         self.connection = connection
+        self.lock = asyncio.Lock()
+    
+    def __getattr__(self, attr):
+        # Proxy all unresolved attributes to the wrapped Connection object.
+        return getattr(self.connection, attr)
 
-    async def close(self) -> None:
-        raise NotImplementedError()  # pragma: nocoverage
+    def transaction(self):
+        return NestedTransaction()
 
-    def in_transaction(self):
-        raise NotImplementedError()  # pragma: nocoverage
+class TransactedConnections:
+    @classmethod
+    def set(cls, name, connection):
+        return current_transaction_map[name].set(connection)
+    
+    @classmethod
+    def reset(cls, name, token):
+        return current_transaction_map[name].reset(token)
+    
+    @classmethod
+    def get(cls, name):
+        return current_transaction_map[name].get()
 
-    async def execute_insert(self, query: str, values: list) -> Any:
-        raise NotImplementedError()  # pragma: nocoverage
 
-    async def execute_query(
-        self, query: str, values: Optional[list] = None
-    ) -> Tuple[int, Sequence[dict]]:
-        raise NotImplementedError()  # pragma: nocoverage
+class TransactedConnectionWrapper:
+    __slots__ = ("transacted_conn", "lock")
 
-    async def execute_script(self, query: str) -> None:
-        raise NotImplementedError()  # pragma: nocoverage
+    def __init__(self, transacted_conn) -> None:
+        self.transacted_conn = transacted_conn
+        self.lock = transacted_conn.lock
 
-    async def execute_many(self, query: str, values: List[list]) -> None:
-        raise NotImplementedError()  # pragma: nocoverage
+    async def __aenter__(self):
+        await self.lock.acquire()
+        return self.transacted_conn
 
-    async def execute_query_dict(self, query: str, values: Optional[list] = None) -> List[dict]:
-        raise NotImplementedError()  # pragma: nocoverage
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.lock.release()
 
 
 class BaseSQLDBMapper(object):
@@ -44,8 +66,6 @@ class BaseSQLDBMapper(object):
 
 
 class BaseSQLDBEngine(object):
-    mapper_class = BaseSQLDBMapper
-    client_class = BaseSQLDBClient
     default_config = {}
     default_parameters = {}
 
@@ -55,18 +75,12 @@ class BaseSQLDBEngine(object):
         self.config.update(config)
         self.parameters = copy.deepcopy(self.default_parameters)
         self.parameters.update(parameters)
-    
-    @property
-    def client(self):
-        return self._client
 
     async def init(self):
-        pass
+        raise NotImplementedError()
     
     async def close(self):
-        if not self._client:
-            return
-        await self._client.close()
+        raise NotImplementedError()
     
     async def db_create(self) -> None:
         raise NotImplementedError()  # pragma: nocoverage
@@ -74,5 +88,5 @@ class BaseSQLDBEngine(object):
     async def db_delete(self) -> None:
         raise NotImplementedError()  # pragma: nocoverage
     
-    def acquire(self):
+    def acquire_connection(self):
         raise NotImplementedError()  # pragma: nocoverage

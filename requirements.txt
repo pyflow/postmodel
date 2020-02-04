@@ -1,3 +1,4 @@
 pypika>=0.22.3
 ciso8601>=2.1
+basepy
 contextvars;python_version<"3.7"
