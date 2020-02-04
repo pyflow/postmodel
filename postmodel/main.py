@@ -34,7 +34,8 @@ class Postmodel:
 
     @classmethod
     def get_engine(cls, egnine_name='default'):
-        return cls._engines[egnine_name]
+        name = egnine_name or 'default'
+        return cls._engines[name]
 
     @classmethod
     async def init(
@@ -58,8 +59,6 @@ class Postmodel:
             cls._engines[key] = await cls._init_engine(key, engine_type, config, parameters)
             current_transaction_map[key] = ContextVar("TransactedConnection", default=None)
         
-        print(current_transaction_map)
-
         for module in modules:
             models = await cls._load_models(module)
             cls._models.update(models)
@@ -129,6 +128,11 @@ class Postmodel:
             await logger.warning(f'Module "{module_name}" has no models')
 
         return models
+    
+    @classmethod
+    def get_mapper(cls, model_class, engine_name='default'):
+        engine = cls.get_engine(engine_name)
+        return engine.get_mapper(model_class)
 
     @classmethod
     async def generate_schemas(cls, safe = True) -> None:

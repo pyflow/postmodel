@@ -10,7 +10,7 @@ class MetaInfo:
     __slots__ = (
         "abstract",
         "table",
-        "app",
+        "engine_name",
         "fields",
         "db_fields",
         "fields_db_projection",
@@ -25,8 +25,8 @@ class MetaInfo:
 
     def __init__(self, meta) -> None:
         self.abstract = getattr(meta, "abstract", False)  # type: bool
-        self.table = getattr(meta, "table", "")  # type: str
-        self.app = getattr(meta, "app", None)  # type: Optional[str]
+        self.table = getattr(meta, "table", )  # type: str
+        self.engine_name = getattr(meta, "engine_name", 'default')  # type: Optional[str]
         self.unique_together = self._get_unique_together(meta)  # type: Union[Tuple, List]
         self.fields = set()  # type: Set[str]
         self.db_fields = set()  # type: Set[str]
@@ -78,6 +78,8 @@ class ModelMeta(type):
         fields_db_projection = {}  # type: Dict[str,str]
         fields_map = {}  # type: Dict[str, fields.Field]
         meta_class = attrs.pop("Meta", type("Meta", (), {}))
+        if not hasattr(meta_class, "table"):
+            setattr(meta_class, "table", name)
 
         meta = MetaInfo(meta_class)
 
@@ -125,6 +127,7 @@ class ModelMeta(type):
 
 class Model(metaclass=ModelMeta):
     _meta = None
+    _mapper_cache = {}
 
     class Meta:
         """
@@ -217,3 +220,13 @@ class Model(metaclass=ModelMeta):
     @pk.setter
     def pk(self):
         setattr(self, self._meta.pk_attr, value)
+    
+    @classmethod
+    def get_mapper(cls):
+        engine_name = cls._meta.engine_name
+        if engine_name in cls._mapper_cache:
+            return cls._mapper_cache[engine_name]
+        else:
+            mapper = Postmode.get_mapper(cls, engine_name)
+            cls._mapper_cache[engine_name] = mapper
+            return mapper

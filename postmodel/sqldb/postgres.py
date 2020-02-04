@@ -10,6 +10,7 @@ from postmodel.exceptions import (OperationalError,
         DBConnectionError, 
         IntegrityError, 
         TransactionManagementError)
+from postmodel.main import Postmodel
 
 
 def translate_exceptions(func):
@@ -64,14 +65,22 @@ class PooledTransactionContext:
         await self.pool.release(con)
 
 
+class PostgresMapper(BaseSQLDBMapper):
+    async def create_table(self):
+        raise NotImplementedError()
+
+    async def insert(self, data):
+        raise NotImplementedError()
+
+
 class PostgresEngine(BaseSQLDBEngine):
+    mapper_class = PostgresMapper
     default_config = {
         'min_size': 1,
         'max_size': 30,
     }
      
     def __init__(self, name,  config, parameters={}):
-        print(name)
         super(PostgresEngine, self).__init__(name, config=config, parameters=parameters)
         self.user = self.config['username']
         self.password = self.config['password']

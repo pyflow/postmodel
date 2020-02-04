@@ -54,9 +54,9 @@ class TransactedConnectionWrapper:
 
 
 class BaseSQLDBMapper(object):
-    def __init__(self, model, client):
-        self.model = model
-        self.client = client
+    def __init__(self, model_class, engine):
+        self.model_class = model_class
+        self.engine = engine
     
     async def create_table(self):
         raise NotImplementedError()
@@ -66,6 +66,7 @@ class BaseSQLDBMapper(object):
 
 
 class BaseSQLDBEngine(object):
+    mapper_class = BaseSQLDBMapper
     default_config = {}
     default_parameters = {}
 
@@ -90,3 +91,6 @@ class BaseSQLDBEngine(object):
     
     def acquire_connection(self):
         raise NotImplementedError()  # pragma: nocoverage
+    
+    def get_mapper(self, model_class):
+        return self.mapper_class(model_class, self)
