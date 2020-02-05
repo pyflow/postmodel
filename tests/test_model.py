@@ -14,3 +14,4 @@ def test_model_1():
         bar_content = fields.TextField()
 
     assert len(FooBar._meta.fields_map) == 3
+

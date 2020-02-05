@@ -57,11 +57,15 @@ class BaseDatabaseMapper(object):
     def __init__(self, model_class, db):
         self.model_class = model_class
         self.db = db
+        self.init()
+
+    def init(self):
+        raise NotImplementedError()
     
     async def create_table(self):
         raise NotImplementedError()
 
-    async def insert(self, data):
+    async def insert(self, model):
         raise NotImplementedError()
 
 

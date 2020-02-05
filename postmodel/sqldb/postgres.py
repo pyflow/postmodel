@@ -12,6 +12,9 @@ from postmodel.exceptions import (OperationalError,
         TransactionManagementError)
 from postmodel.main import Postmodel
 from .common import BaseTableSchemaGenerator
+from pypika import Parameter
+from pypika import Table, Query
+
 
 
 def translate_exceptions(func):
@@ -67,13 +70,60 @@ class PooledTransactionContext:
 
 
 class PostgresMapper(BaseDatabaseMapper):
+    EXPLAIN_PREFIX: str = "EXPLAIN"
+
+    def init(self):
+        self.meta = self.model_class._meta
+        self.pika_table = Table(self.meta.table)
+        column_names = []
+        columns = []
+        self.columns = columns
+        self.column_name = column_names
+        for name, field in self.meta.fields_map.items():
+            column_names.append(name)
+            columns.append(field)
+        self.insert_all_sql = str(
+            Query.into(self.pika_table)
+            .columns(*column_names)
+            .insert(*[self.parameter(i) for i in range(len(column_names))]).get_sql()
+        )
+        self.delete_sql = str(
+            Query.from_(self.pika_table).where(
+                self.pika_table[self.meta.db_pk_field] == self.parameter(0)
+            ).delete().get_sql()
+        )
+        self.delete_table_sql = str(
+            Query.from_(self.pika_table).delete().get_sql()
+        )
+        self.update_cache = {}
+
+    def parameter(self, pos: int) -> Parameter:
+        return Parameter("$%d" % (pos + 1,))
+
+    async def execute_explain(self, query) -> Any:
+        sql = " ".join((self.EXPLAIN_PREFIX, query.get_sql()))
+        return (await self.db.execute_query(sql))[1]
+
     async def create_table(self):
         sg = BaseTableSchemaGenerator(self.model_class._meta)
         await self.db.execute_script(sg.get_create_schema_sql())
+    
+    async def delete_table(self):
+        await self.db.execute_script(self.delete_table_sql)
 
-    async def insert(self, data):
-        raise NotImplementedError()
+    async def insert(self, model_instance):
+        values = [
+            column.to_db_value(getattr(model_instance, column.model_field_name), model_instance)
+            for column in self.columns
+        ]
+        insert_result = await self.db.execute_insert(self.insert_all_sql, values)
 
+    async def delete(self, model_instance):
+        return (
+            await self.db.execute_query(
+                self.delete_sql, [self.meta.pk.to_db_value(model_instance.pk, model_instance)]
+            )
+        )[0]
 
 class PostgresEngine(BaseDatabaseEngine):
     mapper_class = PostgresMapper

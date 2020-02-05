@@ -6,6 +6,7 @@ from postmodel import fields
 from postmodel.exceptions import ConfigurationError, OperationalError
 from postmodel.fields import Field
 from postmodel.main import Postmodel
+from collections import OrderedDict
 
 import re
 
@@ -47,9 +48,9 @@ class MetaInfo:
         self.indexes = self._get_together(meta, "indexes")
         self.fields = set()  # type: Set[str]
         self.db_fields = set()  # type: Set[str]
-        self.fields_db_projection = {}  # type: Dict[str,str]
-        self.fields_db_projection_reverse = {}  # type: Dict[str,str]
-        self.fields_map = {}  # type: Dict[str, fields.Field]
+        self.fields_db_projection = OrderedDict()  # type: Dict[str,str]
+        self.fields_db_projection_reverse = OrderedDict()  # type: Dict[str,str]
+        self.fields_map = OrderedDict()  # type: Dict[str, fields.Field]
         self.pk_attr = getattr(meta, "pk_attr", "")  # type: str
         self.table_description = getattr(meta, "table_description", "")  # type: str
         self.pk = None  # type: fields.Field  # type: ignore
@@ -91,8 +92,8 @@ class ModelMeta(type):
     __slots__ = ()
 
     def __new__(mcs, name: str, bases, attrs: dict, *args, **kwargs):
-        fields_db_projection = {}  # type: Dict[str,str]
-        fields_map = {}  # type: Dict[str, fields.Field]
+        fields_db_projection = OrderedDict()  # type: Dict[str,str]
+        fields_map = OrderedDict()  # type: Dict[str, fields.Field]
         meta_class = attrs.pop("Meta", type("Meta", (), {}))
         if not hasattr(meta_class, "table"):
             setattr(meta_class, "table", camel_to_snake(name))
@@ -170,13 +171,20 @@ class Model(metaclass=ModelMeta):
         # Assign values and do type conversions
         passed_fields = {*kwargs.keys()}
 
+        for key, value in kwargs.items():
+            if key in meta.fields_db_projection:
+                field = meta.fields_map[key]
+                if value is None and not field.null:
+                    raise ValueError(f"{key} is non nullable field, but null was passed")
+                setattr(self, key, field.to_python_value(value))
+
         # Assign defaults for missing fields
         for key in meta.fields.difference(passed_fields):
-            field_object = meta.fields_map[key]
-            if callable(field_object.default):
-                setattr(self, key, field_object.default())
+            field = meta.fields_map[key]
+            if callable(field.default):
+                setattr(self, key, field.default())
             else:
-                setattr(self, key, field_object.default)
+                setattr(self, key, field.default)
         
         self._snapshot_data = {}
     
@@ -237,9 +245,48 @@ class Model(metaclass=ModelMeta):
     def pk(self, value):
         setattr(self, self._meta.pk_attr, value)
     
+    async def save(self, using_db=None, update_fields = None) -> None:
+        pass
+
+    async def delete(self, using_db=None) -> None:
+        """
+        Deletes the current model object.
+
+        :raises OperationalError: If object has never been persisted.
+        """
+        db = using_db or self._meta.db_name
+        if not self._saved_in_db:
+            raise OperationalError("Can't delete unpersisted record")
+        mapper = self.get_mapper(using_db=db)
+        await mapper.delete(self)
+
     @classmethod
-    def get_mapper(cls):
-        db_name = cls._meta.db_name
+    async def create(cls, **kwargs):
+        """
+        Create a record in the DB and returns the object.
+
+        .. code-block:: python3
+
+            user = await User.create(name="...", email="...")
+
+        Equivalent to:
+
+        .. code-block:: python3
+
+            user = User(name="...", email="...")
+            await user.save()
+        """
+        instance = cls(**kwargs)
+        db = kwargs.get("using_db") or cls._meta.db_name
+        mapper = cls.get_mapper(using_db=db)
+        await mapper.insert(instance)
+        instance._saved_in_db = True
+        instance.make_snapshot()
+        return instance
+
+    @classmethod
+    def get_mapper(cls, using_db=None):
+        db_name = using_db or cls._meta.db_name
         if db_name in cls._mapper_cache:
             return cls._mapper_cache[db_name]
         else:
