@@ -144,7 +144,6 @@ class ModelMeta(type):
 
 class Model(metaclass=ModelMeta):
     _meta = None
-    _mapper_cache = {}
 
     class Meta:
         """
@@ -245,10 +244,10 @@ class Model(metaclass=ModelMeta):
     def pk(self, value):
         setattr(self, self._meta.pk_attr, value)
     
-    async def save(self, using_db=None, update_fields = None) -> None:
+    async def save(self, using_db=None, update_fields = None) -> int:
         pass
 
-    async def delete(self, using_db=None) -> None:
+    async def delete(self, using_db=None) -> int:
         """
         Deletes the current model object.
 
@@ -258,7 +257,7 @@ class Model(metaclass=ModelMeta):
         if not self._saved_in_db:
             raise OperationalError("Can't delete unpersisted record")
         mapper = self.get_mapper(using_db=db)
-        await mapper.delete(self)
+        return await mapper.delete(self)
 
     @classmethod
     async def create(cls, **kwargs):
@@ -287,9 +286,5 @@ class Model(metaclass=ModelMeta):
     @classmethod
     def get_mapper(cls, using_db=None):
         db_name = using_db or cls._meta.db_name
-        if db_name in cls._mapper_cache:
-            return cls._mapper_cache[db_name]
-        else:
-            mapper = Postmodel.get_mapper(cls, db_name)
-            cls._mapper_cache[db_name] = mapper
-            return mapper
+        mapper = Postmodel.get_mapper(cls, db_name)
+        return mapper

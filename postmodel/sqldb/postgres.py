@@ -116,19 +116,18 @@ class PostgresMapper(BaseDatabaseMapper):
             column.to_db_value(getattr(model_instance, column.model_field_name), model_instance)
             for column in self.columns
         ]
-        insert_result = await self.db.execute_insert(self.insert_all_sql, values)
+        await self.db.execute_insert(self.insert_all_sql, values)
 
     async def delete(self, model_instance):
-        return (
-            await self.db.execute_query(
-                self.delete_sql, [self.meta.pk.to_db_value(model_instance.pk, model_instance)]
-            )
-        )[0]
+        ret = await self.db.execute_query(
+            self.delete_sql, [self.meta.pk.to_db_value(model_instance.pk, model_instance)]
+        )
+        return ret[0]
 
 class PostgresEngine(BaseDatabaseEngine):
     mapper_class = PostgresMapper
     default_config = {
-        'min_size': 1,
+        'min_size': 10,
         'max_size': 30,
     }
      
@@ -209,7 +208,7 @@ class PostgresEngine(BaseDatabaseEngine):
 
     def acquire_connection(self, timeout=None):
         if not self._pool:
-            self._create_pool()
+            raise Exception('Database init() not called.')
         transacted_conn =  self._current_transacted_conn()
         if transacted_conn:
             return TransactedConnectionWrapper(transacted_conn)
@@ -217,9 +216,14 @@ class PostgresEngine(BaseDatabaseEngine):
             return self._pool.acquire(timeout=timeout)
     
     @translate_exceptions
-    async def execute_insert(self, query: str, values: list) -> Optional[asyncpg.Record]:
+    async def execute_insert(self, query: str, values: list) -> int:
         async with self.acquire_connection() as connection:
-            return await connection.fetchrow(query, *values)
+            ret = await connection.execute(query, *values)
+            try:
+                rows_affected = int(ret.split(" ")[-1])
+            except Exception:  # pragma: nocoverage
+                rows_affected = 0
+            return rows_affected
     
     @translate_exceptions
     async def execute_many(self, query: str, values: list) -> None:
@@ -237,9 +241,9 @@ class PostgresEngine(BaseDatabaseEngine):
             else:
                 params = [query]
             if query.startswith("UPDATE") or query.startswith("DELETE"):
-                res = await connection.execute(*params)
+                ret = await connection.execute(*params)
                 try:
-                    rows_affected = int(res.split(" ")[1])
+                    rows_affected = int(ret.split(" ")[1])
                 except Exception:  # pragma: nocoverage
                     rows_affected = 0
                 return rows_affected, []
@@ -255,6 +259,6 @@ class PostgresEngine(BaseDatabaseEngine):
             return list(map(dict, await connection.fetch(query)))
 
     @translate_exceptions
-    async def execute_script(self, query: str) -> None:
+    async def execute_script(self, query: str) -> str:
         async with self.acquire_connection() as connection:
-            await connection.execute(query)
+            return await connection.execute(query)

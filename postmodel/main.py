@@ -26,6 +26,7 @@ class Postmodel:
         'postgres': ('postmodel.sqldb.postgres', 'PostgresEngine'),
     }
     _databases = {}
+    _mapper_cache = {}
     _models = {}
     _inited = False
 
@@ -129,8 +130,14 @@ class Postmodel:
     
     @classmethod
     def get_mapper(cls, model_class, db_name='default'):
-        db = cls.get_database(db_name)
-        return db.get_mapper(model_class)
+        key = (model_class, db_name)
+        if key not in cls._mapper_cache:
+            db = cls.get_database(db_name)
+            mapper = db.get_mapper(model_class)
+            cls._mapper_cache[key] = mapper
+            return mapper
+        else:
+            return cls._mapper_cache[key]
 
     @classmethod
     async def generate_schemas(cls, safe = True) -> None:
@@ -154,6 +161,7 @@ class Postmodel:
     async def _reset(cls):
         await cls.close_databases()
         cls._databases = {}
+        cls._mapper_cache = {}
         cls._models = {}
         cls._inited = False
     

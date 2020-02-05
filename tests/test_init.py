@@ -13,3 +13,4 @@ async def test_init_1():
     assert Postmodel._inited == True
     await Postmodel.generate_schemas()
     await Postmodel.close()
+    print('test_init_1 end.')
