@@ -9,7 +9,7 @@ class BaseTableSchemaGenerator:
     TABLE_DELETE_TEMPLATE = 'DROP TABLE "{table_name}" CASCADE;'
     TABLE_RENAME_TEMPLATE = 'ALTER TABLE "{table_name}" RENAME TO "{new_table_name}";'
 
-    FIELD_TEMPLATE = '"{name}" {type} {nullable} {unique}{primary}{comment},'
+    FIELD_TEMPLATE = '"{name}" {type} {nullable} {unique}{primary}{comment}'
     INDEX_CREATE_TEMPLATE = 'CREATE INDEX {exists}"{index_name}" ON "{table_name}" ({fields});'
     UNIQUE_CONSTRAINT_CREATE_TEMPLATE = 'CONSTRAINT "{index_name}" UNIQUE ({fields})'
 
@@ -39,14 +39,29 @@ class BaseTableSchemaGenerator:
     def _make_hash(*args: str, length: int) -> str:
         # Hash a set of string values and get a digest of the given length.
         return sha256(";".join(args).encode("utf-8")).hexdigest()[:length]
-    
+
+    def _generate_index_name(self, prefix, field_names: List[str]) -> str:
+        # NOTE: for compatibility, index name should not be longer than 30
+        # characters (Oracle limit).
+        # That's why we slice some of the strings here.
+        table_name = self.meta_info.table
+        index_name = "{}_{}_{}_{}".format(
+            prefix,
+            table_name[:11],
+            field_names[0][:7],
+            self._make_hash(table_name, *field_names, length=6),
+        )
+        return index_name
+
+
     def get_create_schema_sql(self, safe=True) -> str:
         exists="IF NOT EXISTS " if safe else ""
         meta = self.meta_info
         table_name = meta.table
-        
+        schema_sql = []
+
         fields_with_index = []
-        fields_sql = [""]
+        fields_sql = []
         for name, field in meta.fields_map.items():
             db_field = meta.fields_db_projection[name]
             nullable = "NOT NULL" if not field.null else ""
@@ -56,7 +71,7 @@ class BaseTableSchemaGenerator:
             if callable(field_type):
                 field_type = field_type(field)
             if field.index and not field.pk:
-                fields_with_index.append(db_field)
+                fields_with_index.append(field)
             sql = self.FIELD_TEMPLATE.format(
                 name=db_field,
                 type=field_type,
@@ -67,12 +82,26 @@ class BaseTableSchemaGenerator:
             ).strip()
             fields_sql.append(sql)
 
+
         
-        return self.TABLE_CREATE_TEMPLATE.format(
+        table_create_sql = self.TABLE_CREATE_TEMPLATE.format(
             exists = exists,
             table_name = table_name,
-            fields = "\n    ".join(fields_sql) + "\n",
+            fields = "\n    {}\n".format(",\n    ".join(fields_sql)),
             extra = "",
             comment = ""
         )
+        schema_sql.append(table_create_sql)
+
+        for field in fields_with_index:
+            field_names = [meta.fields_db_projection[field.model_field_name]]
+            sql = self.INDEX_CREATE_TEMPLATE.format(
+                exists="IF NOT EXISTS " if safe else "",
+                index_name=self._generate_index_name("idx", field_names),
+                table_name=table_name,
+                fields=", ".join([self.quote(f) for f in field_names]),
+            )
+            schema_sql.append(sql)
+
+        return '\n'.join(schema_sql)
 
