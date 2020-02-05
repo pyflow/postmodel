@@ -17,6 +17,7 @@ class MetaInfo:
         "fields_db_projection_reverse",
         "fields_map",
         "unique_together",
+        "indexes",
         "pk_attr",
         "table_description",
         "pk",
@@ -27,7 +28,8 @@ class MetaInfo:
         self.abstract = getattr(meta, "abstract", False)  # type: bool
         self.table = getattr(meta, "table", )  # type: str
         self.db_name = getattr(meta, "db_name", 'default')  # type: Optional[str]
-        self.unique_together = self._get_unique_together(meta)  # type: Union[Tuple, List]
+        self.unique_together = self._get_together(meta, "unique_together")  # type: Union[Tuple, List]
+        self.indexes = self._get_together(meta, "indexes")
         self.fields = set()  # type: Set[str]
         self.db_fields = set()  # type: Set[str]
         self.fields_db_projection = {}  # type: Dict[str,str]
@@ -38,16 +40,15 @@ class MetaInfo:
         self.pk = None  # type: fields.Field  # type: ignore
         self.db_pk_field = ""  # type: str
 
-    def _get_unique_together(self, meta):
-        unique_together = getattr(meta, "unique_together", None)
+    def _get_together(self, meta, together: str):
+        _together = getattr(meta, together, ())
 
-        if isinstance(unique_together, (list, tuple)):
-            if unique_together and isinstance(unique_together[0], str):
-                unique_together = (unique_together,)
+        if isinstance(_together, (list, tuple)):
+            if _together and isinstance(_together[0], str):
+                _together = (_together,)
 
         # return without validation, validation will be done further in the code
-        return unique_together
-
+        return _together
 
     def finalise_pk(self) -> None:
         self.pk = self.fields_map[self.pk_attr]

@@ -81,9 +81,15 @@ class BaseTableSchemaGenerator:
                 primary=" PRIMARY KEY" if is_pk else "",
             ).strip()
             fields_sql.append(sql)
-
-
         
+        for unique_together_list in meta.unique_together:
+            field_names = unique_together_list
+            sql = self.UNIQUE_CONSTRAINT_CREATE_TEMPLATE.format(
+                index_name=self._generate_index_name("uniq",  field_names),
+                fields=", ".join([self.quote(f) for f in field_names]),
+            )
+            fields_sql.append(sql)
+
         table_create_sql = self.TABLE_CREATE_TEMPLATE.format(
             exists = exists,
             table_name = table_name,
@@ -95,6 +101,16 @@ class BaseTableSchemaGenerator:
 
         for field in fields_with_index:
             field_names = [meta.fields_db_projection[field.model_field_name]]
+            sql = self.INDEX_CREATE_TEMPLATE.format(
+                exists="IF NOT EXISTS " if safe else "",
+                index_name=self._generate_index_name("idx", field_names),
+                table_name=table_name,
+                fields=", ".join([self.quote(f) for f in field_names]),
+            )
+            schema_sql.append(sql)
+
+        for fields in meta.indexes:
+            field_names = fields
             sql = self.INDEX_CREATE_TEMPLATE.format(
                 exists="IF NOT EXISTS " if safe else "",
                 index_name=self._generate_index_name("idx", field_names),
