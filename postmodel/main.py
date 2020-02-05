@@ -9,9 +9,6 @@ from typing import Any, Coroutine, Dict, List, Optional, Tuple, Type, Union, cas
 from basepy.log import logger
 from basepy.log import logger
 
-
-from postmodel.model import Model
-
 from urllib.parse import urlparse, parse_qs
 import uuid
 
@@ -109,6 +106,7 @@ class Postmodel:
 
     @classmethod
     async def _load_models(cls, module_name):
+        Model = getattr(importlib.import_module('postmodel.model'), 'Model')
         module = importlib.import_module(module_name)
         models = {}
         model_names = getattr(module, "__models__", None)
@@ -148,8 +146,9 @@ class Postmodel:
         """
         if not cls._inited:
             raise ConfigurationError("You have to call .init() first before generating schemas")
-        for model in cls._models:
-            pass
+        for name, model in cls._models.items():
+            mapper = model.get_mapper()
+            await mapper.create_table()
     
     @classmethod
     async def _reset(cls):

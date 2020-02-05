@@ -11,6 +11,7 @@ from postmodel.exceptions import (OperationalError,
         IntegrityError, 
         TransactionManagementError)
 from postmodel.main import Postmodel
+from .common import BaseTableSchemaGenerator
 
 
 def translate_exceptions(func):
@@ -67,7 +68,8 @@ class PooledTransactionContext:
 
 class PostgresMapper(BaseDatabaseMapper):
     async def create_table(self):
-        raise NotImplementedError()
+        sg = BaseTableSchemaGenerator(self.model_class._meta)
+        await self.db.execute_script(sg.get_create_schema_sql())
 
     async def insert(self, data):
         raise NotImplementedError()

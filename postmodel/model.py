@@ -5,6 +5,21 @@ from pypika import Query
 from postmodel import fields
 from postmodel.exceptions import ConfigurationError, OperationalError
 from postmodel.fields import Field
+from postmodel.main import Postmodel
+
+import re
+
+
+_underscorer1 = re.compile(r'(.)([A-Z][a-z]+)')
+_underscorer2 = re.compile('([a-z0-9])([A-Z])')
+
+def camel_to_snake(s):
+    """
+    Is it ironic that this function is written in camel case, yet it
+    converts to snake case? hmm..
+    """
+    subbed = _underscorer1.sub(r'\1_\2', s)
+    return _underscorer2.sub(r'\1_\2', subbed).lower()
 
 class MetaInfo:
     __slots__ = (
@@ -80,7 +95,7 @@ class ModelMeta(type):
         fields_map = {}  # type: Dict[str, fields.Field]
         meta_class = attrs.pop("Meta", type("Meta", (), {}))
         if not hasattr(meta_class, "table"):
-            setattr(meta_class, "table", name)
+            setattr(meta_class, "table", camel_to_snake(name))
 
         meta = MetaInfo(meta_class)
 
@@ -219,7 +234,7 @@ class Model(metaclass=ModelMeta):
         return getattr(self, self._meta.pk_attr)
     
     @pk.setter
-    def pk(self):
+    def pk(self, value):
         setattr(self, self._meta.pk_attr, value)
     
     @classmethod
@@ -228,6 +243,6 @@ class Model(metaclass=ModelMeta):
         if db_name in cls._mapper_cache:
             return cls._mapper_cache[db_name]
         else:
-            mapper = Postmode.get_mapper(cls, db_name)
+            mapper = Postmodel.get_mapper(cls, db_name)
             cls._mapper_cache[db_name] = mapper
             return mapper
