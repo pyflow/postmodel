@@ -1,6 +1,6 @@
 from typing import Any, List, Optional, Sequence, Tuple, Type, Union
 from functools import wraps
-from .base import BaseSQLDBEngine, BaseSQLDBMapper
+from .base import BaseDatabaseEngine, BaseDatabaseMapper
 from .base import (TransactedConnections, 
         TransactedConnectionProxy,
         TransactedConnectionWrapper)
@@ -65,7 +65,7 @@ class PooledTransactionContext:
         await self.pool.release(con)
 
 
-class PostgresMapper(BaseSQLDBMapper):
+class PostgresMapper(BaseDatabaseMapper):
     async def create_table(self):
         raise NotImplementedError()
 
@@ -73,7 +73,7 @@ class PostgresMapper(BaseSQLDBMapper):
         raise NotImplementedError()
 
 
-class PostgresEngine(BaseSQLDBEngine):
+class PostgresEngine(BaseDatabaseEngine):
     mapper_class = PostgresMapper
     default_config = {
         'min_size': 1,

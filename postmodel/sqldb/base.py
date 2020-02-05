@@ -53,10 +53,10 @@ class TransactedConnectionWrapper:
         self.lock.release()
 
 
-class BaseSQLDBMapper(object):
-    def __init__(self, model_class, engine):
+class BaseDatabaseMapper(object):
+    def __init__(self, model_class, db):
         self.model_class = model_class
-        self.engine = engine
+        self.db = db
     
     async def create_table(self):
         raise NotImplementedError()
@@ -65,8 +65,8 @@ class BaseSQLDBMapper(object):
         raise NotImplementedError()
 
 
-class BaseSQLDBEngine(object):
-    mapper_class = BaseSQLDBMapper
+class BaseDatabaseEngine(object):
+    mapper_class = BaseDatabaseMapper
     default_config = {}
     default_parameters = {}
 

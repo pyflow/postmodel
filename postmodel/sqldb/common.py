@@ -16,6 +16,7 @@ class BaseTableSchemaGenerator:
     def get_create_schema_sql(self, safe=True) -> str:
         exists="IF NOT EXISTS " if safe else ""
         table_name = self.meta_info.table
+        
         return self.TABLE_CREATE_TEMPLATE.format(
             exists = exists,
             table_name = table_name,

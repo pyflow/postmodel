@@ -1,14 +1,10 @@
 
 from functools import wraps
 from typing import Callable, Optional
-
-def _get_engine(engine_name):
-    from tortoise import Postmodel
-
-    return Postmodel.get_engine(engine_name)
+from postmodel.main import Postmodel
 
 
-def in_transaction(engine_name: Optional[str] = None) -> "TransactionContext":
+def in_transaction(db_name: Optional[str] = None):
     """
     Transaction context manager.
 
@@ -16,11 +12,11 @@ def in_transaction(engine_name: Optional[str] = None) -> "TransactionContext":
     into one transaction. If error occurs transaction will rollback.
 
     """
-    engine = _get_engine(engine_name)
-    return engine.in_transaction()
+    db = Postmodel.get_database(db_name)
+    return db.in_transaction()
 
 
-def atomic(engine_name: Optional[str] = None) -> Callable:
+def atomic(db_name: Optional[str] = None):
     """
     Transaction decorator.
 
@@ -32,8 +28,8 @@ def atomic(engine_name: Optional[str] = None) -> Callable:
     def wrapper(func):
         @wraps(func)
         async def wrapped(*args, **kwargs):
-            engine = _get_engine(engine_name)
-            async with engine.in_transaction():
+            db = Postmodel.get_database(db_name)
+            async with db.in_transaction():
                 return await func(*args, **kwargs)
 
         return wrapped

@@ -10,7 +10,7 @@ class MetaInfo:
     __slots__ = (
         "abstract",
         "table",
-        "engine_name",
+        "db_name",
         "fields",
         "db_fields",
         "fields_db_projection",
@@ -26,7 +26,7 @@ class MetaInfo:
     def __init__(self, meta) -> None:
         self.abstract = getattr(meta, "abstract", False)  # type: bool
         self.table = getattr(meta, "table", )  # type: str
-        self.engine_name = getattr(meta, "engine_name", 'default')  # type: Optional[str]
+        self.db_name = getattr(meta, "db_name", 'default')  # type: Optional[str]
         self.unique_together = self._get_unique_together(meta)  # type: Union[Tuple, List]
         self.fields = set()  # type: Set[str]
         self.db_fields = set()  # type: Set[str]
@@ -223,10 +223,10 @@ class Model(metaclass=ModelMeta):
     
     @classmethod
     def get_mapper(cls):
-        engine_name = cls._meta.engine_name
-        if engine_name in cls._mapper_cache:
-            return cls._mapper_cache[engine_name]
+        db_name = cls._meta.db_name
+        if db_name in cls._mapper_cache:
+            return cls._mapper_cache[db_name]
         else:
-            mapper = Postmode.get_mapper(cls, engine_name)
-            cls._mapper_cache[engine_name] = mapper
+            mapper = Postmode.get_mapper(cls, db_name)
+            cls._mapper_cache[db_name] = mapper
             return mapper

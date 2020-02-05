@@ -25,17 +25,17 @@ except ImportError:  # pragma: nocoverage
 
 
 class Postmodel:
-    ENGINES_CLASS = {
+    DATABASE_CLASS = {
         'postgres': ('postmodel.sqldb.postgres', 'PostgresEngine'),
     }
-    _engines = {}
+    _databases = {}
     _models = {}
     _inited = False
 
     @classmethod
-    def get_engine(cls, egnine_name='default'):
-        name = egnine_name or 'default'
-        return cls._engines[name]
+    def get_database(cls, db_name='default'):
+        name = db_name or 'default'
+        return cls._databases[name]
 
     @classmethod
     async def init(
@@ -48,15 +48,15 @@ class Postmodel:
         if cls._inited:
             await cls._reset()
 
-        engine_type, config, parameters = cls._parse_db_url(default_db_url)
+        db_type, config, parameters = cls._parse_db_url(default_db_url)
 
         db_urls = {}
         db_urls.update(extra_db_urls)
         db_urls['default'] = default_db_url
 
         for key, value in db_urls.items():
-            engine_type, config, parameters = cls._parse_db_url(value)
-            cls._engines[key] = await cls._init_engine(key, engine_type, config, parameters)
+            db_type, config, parameters = cls._parse_db_url(value)
+            cls._databases[key] = await cls._init_database(key, db_type, config, parameters)
             current_transaction_map[key] = ContextVar("TransactedConnection", default=None)
         
         for module in modules:
@@ -69,9 +69,9 @@ class Postmodel:
     @classmethod
     def _parse_db_url(cls, db_url):
         url = urlparse(db_url)
-        engine_type = url.scheme
-        if engine_type not in cls.ENGINES_CLASS:
-            raise ConfigurationError(f"Unknown DB scheme: {engine_type}")
+        db_type = url.scheme
+        if db_type not in cls.DATABASE_CLASS:
+            raise ConfigurationError(f"Unknown DB scheme: {db_type}")
 
         config = dict(
             hostname = url.hostname,
@@ -91,21 +91,21 @@ class Postmodel:
         for key, ValueError in parse_qs(url.query).items():
             params[key] = value
 
-        return engine_type, config, params
+        return db_type, config, params
 
     @classmethod
-    async def _init_engine(cls, engine_name, engine_type, config, parameters):
-        db_engine_module, db_engine_class = cls.ENGINES_CLASS[engine_type]
-        engine_module = importlib.import_module(db_engine_module)
+    async def _init_database(cls, db_name, db_type, config, parameters):
+        db_module_name, db_class_name = cls.DATABASE_CLASS[db_type]
+        db_module = importlib.import_module(db_module_name)
 
         try:
-            engine_class = getattr(engine_module, db_engine_class)  # type: ignore
+            database_class = getattr(db_module, db_class_name)  # type: ignore
         except AttributeError:
-            raise ConfigurationError(f'Backend for engine "{engine_type}" does not implemented')
+            raise ConfigurationError(f'Backend for database "{db_type}" does not implemented')
         
-        engine = engine_class(engine_name, config, parameters)
-        await engine.init()
-        return engine
+        db = database_class(db_name, config, parameters)
+        await db.init()
+        return db
 
     @classmethod
     async def _load_models(cls, module_name):
@@ -130,9 +130,9 @@ class Postmodel:
         return models
     
     @classmethod
-    def get_mapper(cls, model_class, engine_name='default'):
-        engine = cls.get_engine(engine_name)
-        return engine.get_mapper(model_class)
+    def get_mapper(cls, model_class, db_name='default'):
+        db = cls.get_database(db_name)
+        return db.get_mapper(model_class)
 
     @classmethod
     async def generate_schemas(cls, safe = True) -> None:
@@ -153,16 +153,16 @@ class Postmodel:
     
     @classmethod
     async def _reset(cls):
-        await cls.close_engines()
-        cls._engines = {}
+        await cls.close_databases()
+        cls._databases = {}
         cls._models = {}
         cls._inited = False
     
     @classmethod
-    async def close_engines(cls) -> None:
-        for engine in cls._engines.values():
-            await engine.close()
-        cls._engines = {}
+    async def close_databases(cls) -> None:
+        for db in cls._databases.values():
+            await db.close()
+        cls._databases = {}
     
     @classmethod
     async def close(cls):
