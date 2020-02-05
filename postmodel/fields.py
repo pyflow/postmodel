@@ -3,18 +3,15 @@ import functools
 import json
 import uuid
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Optional, Union
+from enum import Enum, IntEnum
+from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import ciso8601
 from pypika import Table
 
 from postmodel.exceptions import ConfigurationError, NoValuesFetched, OperationalError
-
-CASCADE = "CASCADE"
-RESTRICT = "RESTRICT"
-SET_NULL = "SET NULL"
-SET_DEFAULT = "SET DEFAULT"
 
 # Doing this we can replace json dumps/loads with different implementations
 JSON_DUMPS = functools.partial(json.dumps, separators=(",", ":"))
@@ -38,7 +35,10 @@ class Field:
         "reference",
         "description",
     )
+    
     has_db_field = True
+    indexable: bool = True
+
 
     def __init__(
         self,
@@ -324,3 +324,16 @@ class UUIDField(Field):
         if value is None or isinstance(value, self.type):
             return value
         return uuid.UUID(value)
+
+class BinaryField(Field):  # type: ignore
+    """
+    Binary field.
+
+    This is for storing ``bytes`` objects.
+    Note that filter or queryset-update operations are not supported.
+    """
+
+    indexable = False
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(str, **kwargs)
