@@ -9,7 +9,6 @@ from typing import Any, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import ciso8601
-from pypika import Table
 
 from postmodel.exceptions import ConfigurationError, NoValuesFetched, OperationalError
 

@@ -1,7 +1,5 @@
 from copy import copy, deepcopy
 
-from pypika import Query
-
 from postmodel.exceptions import ConfigurationError, OperationalError
 from postmodel.main import Postmodel
 from collections import OrderedDict
@@ -243,6 +241,13 @@ class Model(metaclass=ModelMeta):
     def pk(self, value):
         setattr(self, self._meta.pk_attr, value)
     
+    @classmethod
+    def all(cls):
+        """
+        Returns the complete QuerySet.
+        """
+        return QuerySet(cls)
+
     @classmethod
     def get(cls, *args, **kwargs):
         """

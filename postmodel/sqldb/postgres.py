@@ -124,6 +124,9 @@ class PostgresMapper(BaseDatabaseMapper):
         )
         return ret[0]
 
+    async def query(self, query_set):
+        raise NotImplementedError()
+
 class PostgresEngine(BaseDatabaseEngine):
     mapper_class = PostgresMapper
     default_config = {

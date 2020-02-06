@@ -3,7 +3,8 @@ from copy import copy
 from typing import Any, Dict, List, Optional, Tuple
 
 from pypika import Table
-from pypika.terms import Criterion
+from pypika import JoinType, Order, Table
+
 
 from postmodel.exceptions import FieldError, OperationalError
 
@@ -254,10 +255,172 @@ Q = QueryExpression
 class QuerySet:
     def __init__(self, model_class):
         self.model_class = model_class
-    
-    def get(self, *args, **kwargs):
+        self.fields = model_class._meta.db_fields
+        self.db_name = "default"
+
+        self._expect_single = False
+        self._return_single = False
+
+        self._count: bool = False
+        self._limit: Optional[int] = None
+        self._offset: Optional[int] = None
+        self._orderings: List[Tuple[str, Any]] = []
+        self._expressions: List[QueryExpression] = []
+        self._distinct: bool = False
+        self._having: Dict[str, Any] = {}
+
+    def _clone(self):
         return self
-    
+
+    def _filter(self, *args, **kwargs):
+        queryset = self._clone()
+        for arg in args:
+            if not isinstance(arg, Q):
+                raise TypeError("expected Q objects as args")
+            queryset._expressions.append(arg)
+
+        for key, value in kwargs.items():
+            queryset._expressions.append(Q(**{key: value}))
+
+        return queryset
+
+    def filter(self, *args, **kwargs):
+        """
+        Filters QuerySet by given kwargs. You can filter by related objects like this:
+
+        .. code-block:: python3
+
+            Team.filter(events__tournament__name='Test')
+
+        You can also pass Q objects to filters as args.
+        """
+        return self._filter(*args, **kwargs)
+
+    def _exclude(self, *args, **kwargs):
+        queryset = self._clone()
+        for arg in args:
+            if not isinstance(arg, Q):
+                raise TypeError("expected Q objects as args")
+            queryset._expressions.append(~arg)
+
+        for key, value in kwargs.items():
+            queryset._expressions.append(~Q(**{key: value}))
+
+        return queryset
+
+    def exclude(self, *args, **kwargs):
+        """
+        Same as .filter(), but with appends all args with NOT
+        """
+        return self._exclude(*args, **kwargs)
+
+    def order_by(self, *orderings: str):
+        """
+        Accept args to filter by in format like this:
+
+        .. code-block:: python3
+
+            .order_by('name', '-tournament__name')
+
+        Supports ordering by related models too.
+        """
+        queryset = self._clone()
+        new_ordering = []
+        for ordering in orderings:
+            order_type = Order.asc
+            if ordering[0] == "-":
+                field_name = ordering[1:]
+                order_type = Order.desc
+            else:
+                field_name = ordering
+
+            if not (
+                field_name.split("__")[0] in self.fields
+            ):
+                raise FieldError(f"Unknown field {field_name} for model {self.model_class.__name__}")
+            new_ordering.append((field_name, order_type))
+        queryset._orderings = new_ordering
+        return queryset
+
+    def limit(self, limit: int):
+        """
+        Limits QuerySet to given length.
+        """
+        queryset = self._clone()
+        queryset._limit = limit
+        return queryset
+
+    def offset(self, offset: int):
+        """
+        Query offset for QuerySet.
+        """
+        queryset = self._clone()
+        queryset._offset = offset
+        return queryset
+
+    def distinct(self):
+        """
+        Make QuerySet distinct.
+
+        Only makes sense in combination with a ``.values()`` or ``.values_list()`` as it
+        precedes all the fetched fields with a distinct.
+        """
+        queryset = self._clone()
+        queryset._distinct = True
+        return queryset
+
+    def delete(self):
+        pass
+
+    def update(self, **kwargs):
+        pass
+
+    def count(self):
+        pass
+
+    def all(self):
+        """
+        Return the whole QuerySet.
+        Essentially a no-op except as the only operation.
+        """
+        return self._clone()
+
+    def first(self):
+        """
+        Limit queryset to one object and return one object instead of list.
+        """
+        queryset = self._clone()
+        queryset._limit = 1
+        queryset._single = True
+        return queryset  # type: ignore
+
+    def get(self, *args, **kwargs):
+        """
+        Fetch exactly one object matching the parameters.
+        """
+        queryset = self.filter(*args, **kwargs)
+        queryset._limit = 2
+        queryset._expect_single = True
+        return queryset  # type: ignore
+
+    def get_or_none(self, *args, **kwargs):
+        """
+        Fetch exactly one object matching the parameters.
+        """
+        queryset = self.filter(*args, **kwargs)
+        queryset._limit = 1
+        queryset._return_single = True
+        return queryset  # type: ignore
+
+    def using_db(self, db_name):
+        """
+        Executes query in provided db client.
+        Useful for transactions workaround.
+        """
+        queryset = self._clone()
+        queryset.db_name = db_name
+        return queryset
+
     async def __await__(self):
         return self._execute().__await__()
 
@@ -266,4 +429,5 @@ class QuerySet:
             yield val
 
     async def _execute(self):
-        raise NotImplementedError()
+        mapper = self.model_class.get_mapper(self.db_name)
+        await mapper.query(self)

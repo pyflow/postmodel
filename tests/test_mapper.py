@@ -41,6 +41,9 @@ async def test_mapper_1():
     with pytest.raises(IntegrityError):
         await Foo.create(foo_id=2, name="hello", tag="hi", memo="a long text memo.")
 
+    qs = Foo.get(foo_id = 1)
+    print(qs._expressions)
+    print(qs)
     #await asyncio.sleep(6)
     ret = await foo.delete()
     print(ret)
