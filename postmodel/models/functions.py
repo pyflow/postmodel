@@ -1,58 +1,54 @@
 
 from typing import Any
 
-from pypika import functions
-from pypika.terms import AggregateFunction
-from pypika.terms import Function as BaseFunction
-
-
 class Function:
-    database_func = BaseFunction
+    is_aggregate = False
+    is_analytics = False
 
     def __init__(self, field_name, *args, **kwargs) -> None:
         self.field_name = field_name
 
-
 class Trim(Function):
-    database_func = functions.Trim
+    pass
 
 
 class Length(Function):
-    database_func = functions.Length
+    pass
 
 
 class Coalesce(Function):
-    database_func = functions.Coalesce
+    pass
 
 
 class Lower(Function):
-    database_func = functions.Lower
+    pass
 
 
 class Upper(Function):
-    database_func = functions.Upper
+    pass
 
 
 
 class Aggregate(Function):
-    database_func = AggregateFunction
+    is_aggregate = True
+    pass
 
 
 class Count(Aggregate):
-    database_func = functions.Count
+    pass
 
 
 class Sum(Aggregate):
-    database_func = functions.Sum
+    pass
 
 
 class Max(Aggregate):
-    database_func = functions.Max
+    pass
 
 
 class Min(Aggregate):
-    database_func = functions.Min
+    pass
 
 
 class Avg(Aggregate):
-    database_func = functions.Avg
+    pass

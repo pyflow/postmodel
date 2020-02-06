@@ -1,21 +1,20 @@
 
 from copy import copy
 from typing import Any, Dict, List, Optional, Tuple
-
-from pypika import Table
-from pypika import JoinType, Order, Table
-
+from enum import Enum
 
 from postmodel.exceptions import FieldError, OperationalError
 
-import operator
 from functools import partial
 
-from pypika import Table, functions
-from pypika.enums import SqlTypes
+from . import functions
 
 from postmodel.models.fields import Field
 
+
+class Order(Enum):
+    asc = "ASC"
+    desc = "DESC"
 
 class FilterBuilder:
     @staticmethod
@@ -39,64 +38,6 @@ class FilterBuilder:
         return str(value)
 
     @staticmethod
-    def is_in(field, value):
-        return field.isin(value)
-
-    @staticmethod
-    def not_in(field, value):
-        return field.notin(value) | field.isnull()
-
-    @staticmethod
-    def not_equal(field, value):
-        return field.ne(value) | field.isnull()
-
-    @staticmethod
-    def is_null(field, value):
-        if value:
-            return field.isnull()
-        return field.notnull()
-
-    @staticmethod
-    def not_null(field, value):
-        if value:
-            return field.notnull()
-        return field.isnull()
-
-    @staticmethod
-    def contains(field, value):
-        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{value}%")
-
-    @staticmethod
-    def starts_with(field, value):
-        return functions.Cast(field, SqlTypes.VARCHAR).like(f"{value}%")
-
-    @staticmethod
-    def ends_with(field, value):
-        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{value}")
-
-    @staticmethod
-    def insensitive_exact(field, value):
-        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).eq(functions.Upper(f"{value}"))
-
-    @staticmethod
-    def insensitive_contains(field, value):
-        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
-            functions.Upper(f"%{value}%")
-        )
-
-    @staticmethod
-    def insensitive_starts_with(field, value):
-        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
-            functions.Upper(f"{value}%")
-        )
-
-    @staticmethod
-    def insensitive_ends_with(field, value):
-        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
-            functions.Upper(f"%{value}")
-        )
-
-    @staticmethod
     def get_filters_for_field(
         field_name: str, field: Optional[Field], source_field: str
     ) -> Dict[str, dict]:
@@ -107,97 +48,97 @@ class FilterBuilder:
             field_name: {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": operator.eq,
+                "operator": 'equal',
             },
             f"{field_name}__not": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.not_equal,
+                "operator": 'not_equal',
             },
             f"{field_name}__in": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.is_in,
+                "operator": 'is_in',
                 "value_encoder": FilterBuilder.list_encoder,
             },
             f"{field_name}__not_in": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.not_in,
+                "operator": 'not_in',
                 "value_encoder": FilterBuilder.list_encoder,
             },
             f"{field_name}__isnull": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.is_null,
+                "operator": 'is_null',
                 "value_encoder": FilterBuilder.bool_encoder,
             },
             f"{field_name}__not_isnull": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.not_null,
+                "operator": 'not_null',
                 "value_encoder": FilterBuilder.bool_encoder,
             },
             f"{field_name}__gte": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": operator.ge,
+                "operator": "greater_equal",
             },
             f"{field_name}__lte": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": operator.le,
+                "operator": "less_equal",
             },
             f"{field_name}__gt": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": operator.gt,
+                "operator": "greater_than",
             },
             f"{field_name}__lt": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": operator.lt,
+                "operator": "less_than",
             },
             f"{field_name}__contains": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.contains,
+                "operator": "contains",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__startswith": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.starts_with,
+                "operator": "starts_with",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__endswith": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.ends_with,
+                "operator": "ends_with",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__iexact": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.insensitive_exact,
+                "operator": "insensitive_exact",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__icontains": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.insensitive_contains,
+                "operator": "insensitive_contains",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__istartswith": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.insensitive_starts_with,
+                "operator": "insensitive_starts_with",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__iendswith": {
                 "field": actual_field_name,
                 "source_field": source_field,
-                "operator": FilterBuilder.insensitive_ends_with,
+                "operator": "insensitive_ends_with",
                 "value_encoder": FilterBuilder.string_encoder,
             },
         }
@@ -391,7 +332,7 @@ class QuerySet:
         """
         queryset = self._clone()
         queryset._limit = 1
-        queryset._single = True
+        queryset._return_single = True
         return queryset  # type: ignore
 
     def get(self, *args, **kwargs):
