@@ -1,17 +1,16 @@
 
-from postmodel.model import Model
-from postmodel import fields
+from postmodel import models
 
 def test_model_1():
-    class Foo(Model):
-        foo_id = fields.IntField(pk=True)
-        content = fields.TextField()
+    class Foo(models.Model):
+        foo_id = models.IntField(pk=True)
+        content = models.TextField()
     
     assert Foo._meta != None
     assert len(Foo._meta.fields_map) == 2
     
     class FooBar(Foo):
-        bar_content = fields.TextField()
+        bar_content = models.TextField()
 
     assert len(FooBar._meta.fields_map) == 3
 

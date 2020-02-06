@@ -1,18 +1,18 @@
 
 
 from postmodel.sqldb.common import BaseTableSchemaGenerator
-from postmodel import Model, fields
+from postmodel import models
 
 
-class Foo(Model):
-    foo_id = fields.IntField(pk=True)
-    name = fields.CharField(max_length=255, index=True)
-    tag = fields.CharField(max_length=128)
-    memo = fields.TextField()
-    content = fields.JSONField()
-    date = fields.DateField()
-    updated = fields.DatetimeField(auto_now=True)
-    created = fields.DatetimeField(auto_now_add=True)
+class Foo(models.Model):
+    foo_id = models.IntField(pk=True)
+    name = models.CharField(max_length=255, index=True)
+    tag = models.CharField(max_length=128)
+    memo = models.TextField()
+    content = models.JSONField()
+    date = models.DateField()
+    updated = models.DatetimeField(auto_now=True)
+    created = models.DatetimeField(auto_now_add=True)
     class Meta:
         table = "foo_table"
         unique_together = ('name', 'date')

@@ -1,7 +1,7 @@
 
 from postmodel import Postmodel
 import pytest
-from postmodel import Model, fields
+from postmodel import models
 from basepy.log import logger
 
 logger.add('stdout')

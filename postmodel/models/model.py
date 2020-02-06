@@ -2,12 +2,11 @@ from copy import copy, deepcopy
 
 from pypika import Query
 
-from postmodel import fields
 from postmodel.exceptions import ConfigurationError, OperationalError
-from postmodel.fields import Field
 from postmodel.main import Postmodel
 from collections import OrderedDict
-
+from .query import QuerySet
+from .fields import Field
 import re
 
 
@@ -106,7 +105,7 @@ class ModelMeta(type):
         pk_attr = None
 
         for key, value in attrs.items():
-            if isinstance(value, fields.Field):
+            if isinstance(value, Field):
                 fields_map[key] = value
                 value.model_field_name = key
                 if value.pk:
@@ -244,6 +243,20 @@ class Model(metaclass=ModelMeta):
     def pk(self, value):
         setattr(self, self._meta.pk_attr, value)
     
+    @classmethod
+    def get(cls, *args, **kwargs):
+        """
+        Fetches a single record for a Model type using the provided filter parameters.
+
+        .. code-block:: python3
+
+            user = await User.get(username="foo")
+
+        :raises MultipleObjectsReturned: If provided search returned more than one object.
+        :raises DoesNotExist: If object can not be found.
+        """
+        return QuerySet(cls).get(*args, **kwargs)
+
     async def save(self, using_db=None, update_fields = None) -> int:
         pass
 

@@ -7,7 +7,6 @@ if sys.version_info < (3, 6):  # pragma: nocoverage
     raise RuntimeError("Postmodel requires Python 3.6")
 
 from postmodel.main import Postmodel
-from postmodel.model import Model
 import asyncio
 from typing import Coroutine
 

@@ -1,11 +1,11 @@
 
 from postmodel import Postmodel, run_async
 
-from postmodel import Model, fields
+from postmodel import models
 import asyncio
 
-class Foo(Model):
-    foo_id = fields.IntField(pk=True)
+class Foo(models.Model):
+    foo_id = models.IntField(pk=True)
 
 async def create_db():
     await Postmodel.init('postgres://postgres:@127.0.0.1:54320/test_db', modules=[__name__])

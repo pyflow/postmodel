@@ -86,7 +86,7 @@ class Postmodel:
 
         params: dict = {}
 
-        for key, ValueError in parse_qs(url.query).items():
+        for key, value in parse_qs(url.query).items():
             params[key] = value
 
         return db_type, config, params
@@ -107,7 +107,7 @@ class Postmodel:
 
     @classmethod
     async def _load_models(cls, module_name):
-        Model = getattr(importlib.import_module('postmodel.model'), 'Model')
+        Model = getattr(importlib.import_module('postmodel.models.model'), 'Model')
         module = importlib.import_module(module_name)
         models = {}
         model_names = getattr(module, "__models__", None)

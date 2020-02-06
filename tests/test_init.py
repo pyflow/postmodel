@@ -1,10 +1,10 @@
 
 from postmodel import Postmodel
 import pytest
-from postmodel import Model, fields
+from postmodel import models
 
-class Foo(Model):
-    foo_id = fields.IntField(pk=True)
+class Foo(models.Model):
+    foo_id = models.IntField(pk=True)
 
 @pytest.mark.asyncio
 async def test_init_1():

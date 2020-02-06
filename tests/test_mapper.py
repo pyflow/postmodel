@@ -1,15 +1,14 @@
 
-from postmodel import Postmodel
+from postmodel import Postmodel, models
 import pytest
-from postmodel import Model, fields
 from postmodel.exceptions import IntegrityError
 import asyncio
 
-class Foo(Model):
-    foo_id = fields.IntField(pk=True)
-    name = fields.CharField(max_length=255, index=True)
-    tag = fields.CharField(max_length=128)
-    memo = fields.TextField()
+class Foo(models.Model):
+    foo_id = models.IntField(pk=True)
+    name = models.CharField(max_length=255, index=True)
+    tag = models.CharField(max_length=128)
+    memo = models.TextField()
     class Meta:
         table = "foo_mapper"
 
