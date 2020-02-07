@@ -61,11 +61,32 @@ class BaseDatabaseMapper(object):
 
     def init(self):
         raise NotImplementedError()
-    
+
+    async def explain(self, query) -> Any:
+        raise NotImplementedError()
+
     async def create_table(self):
         raise NotImplementedError()
 
-    async def insert(self, model):
+    async def delete_table(self):
+        raise NotImplementedError()
+
+    async def insert(self, model_instance):
+        raise NotImplementedError()
+
+    async def bulk_insert(self, instances):
+        raise NotImplementedError()
+
+    async def query_update(self, updatequery):
+        raise NotImplementedError()
+
+    async def query_delete(self, deletequery):
+        raise NotImplementedError()
+
+    async def query_count(self, countquery):
+        raise NotImplementedError()
+
+    async def delete(self, model_instance):
         raise NotImplementedError()
 
 

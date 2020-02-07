@@ -106,7 +106,7 @@ class PostgresMapper(BaseDatabaseMapper):
     def parameter(self, pos: int) -> Parameter:
         return Parameter("$%d" % (pos + 1,))
 
-    async def execute_explain(self, query) -> Any:
+    async def explain(self, query) -> Any:
         sql = " ".join((self.EXPLAIN_PREFIX, query.get_sql()))
         return (await self.db.execute_query(sql))[1]
 
@@ -125,6 +125,15 @@ class PostgresMapper(BaseDatabaseMapper):
         await self.db.execute_insert(self.insert_all_sql, values)
 
     async def bulk_insert(self, instances):
+        raise NotImplementedError()
+
+    async def query_update(self, updatequery):
+        raise NotImplementedError()
+
+    async def query_delete(self, deletequery):
+        raise NotImplementedError()
+
+    async def query_count(self, countquery):
         raise NotImplementedError()
 
     async def delete(self, model_instance):

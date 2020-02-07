@@ -293,13 +293,28 @@ class QuerySet:
         return queryset
 
     def delete(self):
-        pass
+        return DeleteQuery(
+            model_class=self.model_class,
+            db_name = self.db_name,
+            expressions = self._expressions
+        )
 
     def update(self, **kwargs):
-        pass
+        return UpdateQuery(
+            model_class=self.model_class,
+            db_name = self.db_name,
+            expressions = self._expressions,
+            update_kwargs=kwargs
+        )
 
     def count(self):
-        pass
+        return CountQuery(
+            model_class=self.model_class,
+            db_name = self.db_name,
+            expressions = self._expressions,
+            limit=self._limit,
+            offset=self._offset,
+        )
 
     def all(self):
         """
@@ -354,3 +369,56 @@ class QuerySet:
     async def _execute(self):
         mapper = self.model_class.get_mapper(self.db_name)
         return await mapper.query(self)
+
+
+class UpdateQuery:
+    __slots__ = ("model_class", "db_name", "expressions", "update_kwargs")
+
+    def __init__(self, model_class, db_name, expressions, update_kwargs) -> None:
+        self.model_class = model_class
+        self.db_name = db_name
+        self.update_kwargs = update_kwargs
+        self.expressions = expressions
+
+    def __await__(self):
+        return self._execute().__await__()
+
+    async def _execute(self) -> int:
+        mapper = self.model_class.get_mapper(self.db_name)
+        return await mapper.query_update(self)
+
+
+class DeleteQuery:
+    __slots__ = ("model_class", "db_name", "expressions")
+
+    def __init__(self, model_class, db_name, expressions) -> None:
+        self.model_class = model_class
+        self.db_name = db_name
+        self.expressions = expressions
+
+    def __await__(self):
+        return self._execute().__await__()
+
+    async def _execute(self) -> int:
+        mapper = self.model_class.get_mapper(self.db_name)
+        return await mapper.query_delete(self)
+
+
+class CountQuery:
+    __slots__ = ("model_class", "db_name", "expressions", "limit", "offset")
+
+    def __init__(self, model_class, db_name, expressions, limit, offset) -> None:
+        self.model_class = model_class
+        self.db_name = db_name
+        self.expressions = expressions
+        self.limit = limit
+        self.offset = offset
+
+
+    def __await__(self):
+        return self._execute().__await__()
+
+    async def _execute(self) -> int:
+        mapper = self.model_class.get_mapper(self.db_name)
+        count = await mapper.query_count(self)
+        return count
