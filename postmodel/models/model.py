@@ -316,7 +316,11 @@ class Model(metaclass=ModelMeta):
 
 
     async def save(self, using_db=None, update_fields = None) -> int:
-        pass
+        changed = self.changed
+        if len(changed) == 0:
+            return
+        #TODO: xxx
+        self.make_snapshot()
 
     async def delete(self, using_db=None) -> int:
         """
@@ -394,6 +398,8 @@ class Model(metaclass=ModelMeta):
         """
         mapper = cls.get_mapper(using_db=using_db)
         await mapper.bulk_insert(objects)  # type: ignore
+        for obj in objects:
+            obj.make_snapshot()
 
 
     @classmethod

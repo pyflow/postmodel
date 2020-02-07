@@ -145,7 +145,7 @@ class QueryExpression:
             args = (newarg,) + args
             kwargs = {}
         if not all(isinstance(node, QueryExpression) for node in args):
-            raise OperationalError("All ordered arguments must be Q nodes")
+            raise OperationalError("All ordered arguments must be QueryExpression nodes")
         self.children: Tuple[QueryExpression, ...] = args
         self.filters: Dict[str, Any] = kwargs
         if join_type not in {self.AND, self.OR}:
@@ -157,12 +157,12 @@ class QueryExpression:
 
     def __and__(self, other) -> "QueryExpression":
         if not isinstance(other, QueryExpression):
-            raise OperationalError("AND operation requires a Q node")
+            raise OperationalError("AND operation requires a QueryExpression node")
         return QueryExpression(self, other, join_type=self.AND)
 
     def __or__(self, other) -> "QueryExpression":
         if not isinstance(other, QueryExpression):
-            raise OperationalError("OR operation requires a Q node")
+            raise OperationalError("OR operation requires a QueryExpression node")
         return QueryExpression(self, other, join_type=self.OR)
 
     def __invert__(self) -> "QueryExpression":
@@ -198,12 +198,12 @@ class QuerySet:
     def _filter(self, *args, **kwargs):
         queryset = self._clone()
         for arg in args:
-            if not isinstance(arg, Q):
-                raise TypeError("expected Q objects as args")
+            if not isinstance(arg, QueryExpression):
+                raise TypeError("expected QueryExpression objects as args")
             queryset._expressions.append(arg)
 
         for key, value in kwargs.items():
-            queryset._expressions.append(Q(**{key: value}))
+            queryset._expressions.append(QueryExpression(**{key: value}))
 
         return queryset
 
@@ -215,19 +215,19 @@ class QuerySet:
 
             Team.filter(events__tournament__name='Test')
 
-        You can also pass Q objects to filters as args.
+        You can also pass QueryExpression objects to filters as args.
         """
         return self._filter(*args, **kwargs)
 
     def _exclude(self, *args, **kwargs):
         queryset = self._clone()
         for arg in args:
-            if not isinstance(arg, Q):
-                raise TypeError("expected Q objects as args")
+            if not isinstance(arg, QueryExpression):
+                raise TypeError("expected QueryExpression objects as args")
             queryset._expressions.append(~arg)
 
         for key, value in kwargs.items():
-            queryset._expressions.append(~Q(**{key: value}))
+            queryset._expressions.append(~QueryExpression(**{key: value}))
 
         return queryset
 
