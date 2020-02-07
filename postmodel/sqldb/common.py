@@ -1,7 +1,10 @@
 
 from hashlib import sha256
 from typing import List, Set
-
+import operator
+from pypika import functions
+from pypika.enums import SqlTypes
+from copy import deepcopy
 
 class BaseTableSchemaGenerator:
     DIALECT = "sql"
@@ -121,3 +124,108 @@ class BaseTableSchemaGenerator:
 
         return '\n'.join(schema_sql)
 
+class FieldFilterFunctions:
+
+    @staticmethod
+    def is_in(field, value):
+        return field.isin(value)
+
+    @staticmethod
+    def not_in(field, value):
+        return field.notin(value) | field.isnull()
+
+    @staticmethod
+    def not_equal(field, value):
+        return field.ne(value) | field.isnull()
+
+    @staticmethod
+    def is_null(field, value):
+        if value:
+            return field.isnull()
+        return field.notnull()
+
+    @staticmethod
+    def not_null(field, value):
+        if value:
+            return field.notnull()
+        return field.isnull()
+
+    @staticmethod
+    def contains(field, value):
+        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{value}%")
+
+    @staticmethod
+    def starts_with(field, value):
+        return functions.Cast(field, SqlTypes.VARCHAR).like(f"{value}%")
+
+    @staticmethod
+    def ends_with(field, value):
+        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{value}")
+
+    @staticmethod
+    def insensitive_exact(field, value):
+        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).eq(functions.Upper(f"{value}"))
+
+    @staticmethod
+    def insensitive_contains(field, value):
+        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
+            functions.Upper(f"%{value}%")
+        )
+
+    @staticmethod
+    def insensitive_starts_with(field, value):
+        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
+            functions.Upper(f"{value}%")
+        )
+
+    @staticmethod
+    def insensitive_ends_with(field, value):
+        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
+            functions.Upper(f"%{value}")
+        )
+
+FFF = FieldFilterFunctions
+
+class PikaTableFilters:
+    filter_funcs_map = {
+        'equal': operator.eq,
+        'not_equal': FFF.not_equal,
+        'is_in': FFF.is_in,
+        'not_in': FFF.not_in,
+        'is_null': FFF.is_null,
+        'not_null': FFF.not_null,
+        'greater_equal': operator.ge,
+        'less_equal': operator.le,
+        'greater_than': operator.gt,
+        'less_than': operator.lt,
+        'contains': FFF.contains,
+        'starts_with': FFF.starts_with,
+        'ends_with': FFF.ends_with,
+        'insensitive_exact': FFF.insensitive_exact,
+        'insensitive_contains': FFF.insensitive_contains,
+        'insensitive_starts_with': FFF.insensitive_starts_with,
+        'insensitive_ends_with': FFF.insensitive_ends_with
+    }
+
+    def __init__(self, table, filters):
+        self.pika_fields = {}
+        self.filters = {}
+        for _, field_filters in filters.items():
+            for key, value in field_filters.items():
+                db_field = value['db_field']
+                if db_field not in self.pika_fields:
+                    pika_field = getattr(table, db_field)
+                    self.pika_fields[db_field] = pika_field
+                else:
+                    pika_field = self.pika_fields[db_field]
+                operator = value['operator']
+                operator_func = self.filter_funcs_map[operator]
+                new_value = deepcopy(value)
+                new_value['operator'] = operator_func
+                new_value['pika_field'] = pika_field
+                self.filters[key] = new_value
+
+    def get_criterion(self, key, value):
+        ff = self.filters.get(key)
+        operator_func = ff['operator']
+        return operator_func(ff['pika_field'], value)

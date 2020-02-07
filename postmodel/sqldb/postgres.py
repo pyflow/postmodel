@@ -13,11 +13,11 @@ from postmodel.exceptions import (OperationalError,
         MultipleObjectsReturned,
         DoesNotExist)
 from postmodel.main import Postmodel
-from .common import BaseTableSchemaGenerator
+from .common import BaseTableSchemaGenerator, PikaTableFilters
 from pypika import Parameter
 from pypika import Table, Query, PostgreSQLQuery
 import operator
-
+from copy import deepcopy
 
 
 def translate_exceptions(func):
@@ -85,6 +85,9 @@ class PostgresMapper(BaseDatabaseMapper):
         for name, field in self.meta.fields_map.items():
             column_names.append(name)
             columns.append(field)
+
+        self.filters = PikaTableFilters(self.pika_table, self.meta.filters)
+
         self.insert_all_sql = str(
             Query.into(self.pika_table)
             .columns(*column_names)
@@ -131,9 +134,12 @@ class PostgresMapper(BaseDatabaseMapper):
         values = []
         table = self.pika_table
         query = PostgreSQLQuery.from_(table).select(*self.column_names)
+        i = 0
         for expr in queryset._expressions:
             for key, value in expr.filters.items():
-                query = query.where(operator.eq(getattr(table, key), value))
+                query = query.where(self.filters.get_criterion(key, self.parameter(i)))
+                i += 1
+                values.append(value)
         if queryset._limit:
             query = query.limit(queryset._limit)
         sql = str(query.get_sql())
@@ -148,9 +154,9 @@ class PostgresMapper(BaseDatabaseMapper):
             elif len(rows) == 0:
                 raise DoesNotExist("Object does not exist")
         if queryset._return_single or queryset._expect_single:
-            return self.model_class(**rows[0])
+            return self.model_class._init_from_db(**rows[0])
         else:
-            return [self.model_class(**row) for row in rows]
+            return [self.model_class._init_from_db(**row) for row in rows]
 
 class PostgresEngine(BaseDatabaseEngine):
     mapper_class = PostgresMapper

@@ -3,7 +3,7 @@ from copy import copy, deepcopy
 from postmodel.exceptions import ConfigurationError, OperationalError
 from postmodel.main import Postmodel
 from collections import OrderedDict
-from .query import QuerySet
+from .query import QuerySet, FilterBuilder
 from .fields import Field
 import re
 
@@ -35,6 +35,7 @@ class MetaInfo:
         "table_description",
         "pk",
         "db_pk_field",
+        "filters"
     )
 
     def __init__(self, meta) -> None:
@@ -52,6 +53,7 @@ class MetaInfo:
         self.table_description = getattr(meta, "table_description", "")  # type: str
         self.pk = None  # type: fields.Field  # type: ignore
         self.db_pk_field = ""  # type: str
+        self.filters = {}
 
     def _get_together(self, meta, together: str):
         _together = getattr(meta, together, ())
@@ -67,6 +69,14 @@ class MetaInfo:
         self.pk = self.fields_map[self.pk_attr]
         self.db_pk_field = self.pk.source_field or self.pk_attr
 
+    def finalize_filters(self):
+        for field_name, db_field in self.fields_db_projection.items():
+            filters = FilterBuilder.get_filters_for_field(field_name, db_field)
+            self.filters[field_name] = filters
+
+    def get_filter(self, key: str) -> dict:
+        return self.filters.get(key, None)
+
     def finalise_model(self) -> None:
         """
         Finalise the model after it had been fully loaded.
@@ -75,6 +85,7 @@ class MetaInfo:
             raise Exception('model must have pk or be abstract.')
         if self.pk_attr:
             self.finalise_pk()
+        self.finalize_filters()
         self.finalise_fields()
 
     def finalise_fields(self) -> None:
@@ -183,7 +194,15 @@ class Model(metaclass=ModelMeta):
                 setattr(self, key, field.default)
         
         self._snapshot_data = {}
+
+        if self._saved_in_db:
+            self.make_snapshot()
     
+    @classmethod
+    def _init_from_db(cls, **kwargs):
+        instance = cls(load_from_db=True, **kwargs)
+        return instance
+
     def make_snapshot(self):
         new_data = dict()
         for key in self._meta.fields_db_projection.keys():
