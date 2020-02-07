@@ -18,18 +18,6 @@ class Order(Enum):
 
 class FilterBuilder:
     @staticmethod
-    def list_encoder(values, instance, field: Field):
-        """Encodes an iterable of a given field into a database-compatible format."""
-        return [field.to_db_value(element, instance) for element in values]
-
-    @staticmethod
-    def related_list_encoder(values, instance, field: Field):
-        return [
-            field.to_db_value(element.pk if hasattr(element, "pk") else element, instance)
-            for element in values
-        ]
-
-    @staticmethod
     def bool_encoder(value, *args):
         return bool(value)
 
@@ -54,14 +42,12 @@ class FilterBuilder:
             f"{field_name}__in": {
                 "field": actual_field_name,
                 "db_field": db_field,
-                "operator": 'is_in',
-                "value_encoder": FilterBuilder.list_encoder,
+                "operator": 'is_in'
             },
             f"{field_name}__not_in": {
                 "field": actual_field_name,
                 "db_field": db_field,
-                "operator": 'not_in',
-                "value_encoder": FilterBuilder.list_encoder,
+                "operator": 'not_in'
             },
             f"{field_name}__isnull": {
                 "field": actual_field_name,
