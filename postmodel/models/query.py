@@ -4,12 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
 
 from postmodel.exceptions import FieldError, OperationalError
-
-from functools import partial
-
-from . import functions
-
-from postmodel.models.fields import Field
+from .fields import Field
 
 
 class Order(Enum):

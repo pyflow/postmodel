@@ -19,6 +19,7 @@ from .fields import(
 from .model import Model
 from .query import (
     QuerySet,
+    QueryExpression,
     Q,
     FilterBuilder
 )
