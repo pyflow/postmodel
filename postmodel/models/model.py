@@ -147,6 +147,7 @@ class ModelMeta(type):
         attrs["_meta"] = meta
         new_class = super().__new__(mcs, name, bases, attrs)  # type: "Model"  # type: ignore
         meta.finalise_model()
+        new_class.check()
         return new_class
 
 
@@ -259,7 +260,28 @@ class Model(metaclass=ModelMeta):
     @pk.setter
     def pk(self, value):
         setattr(self, self._meta.pk_attr, value)
-    
+
+    @classmethod
+    def first(cls):
+        """
+        Generates a QuerySet that returns the first record.
+        """
+        return QuerySet(cls).first()
+
+    @classmethod
+    def filter(cls, *args, **kwargs):
+        """
+        Generates a QuerySet with the filter applied.
+        """
+        return QuerySet(cls).filter(*args, **kwargs)
+
+    @classmethod
+    def exclude(cls, *args, **kwargs):
+        """
+        Generates a QuerySet with the exclude applied.
+        """
+        return QuerySet(cls).exclude(*args, **kwargs)
+
     @classmethod
     def all(cls):
         """
@@ -281,6 +303,18 @@ class Model(metaclass=ModelMeta):
         """
         return QuerySet(cls).get(*args, **kwargs)
 
+    @classmethod
+    def get_or_none(cls, *args, **kwargs):
+        """
+        Fetches a single record for a Model type using the provided filter parameters or None.
+
+        .. code-block:: python3
+
+            user = await User.get_or_none(username="foo")
+        """
+        return QuerySet(cls).filter(*args, **kwargs).first()
+
+
     async def save(self, using_db=None, update_fields = None) -> int:
         pass
 
@@ -295,6 +329,20 @@ class Model(metaclass=ModelMeta):
             raise OperationalError("Can't delete unpersisted record")
         mapper = self.get_mapper(using_db=db)
         return await mapper.delete(self)
+
+    @classmethod
+    async def get_or_create(cls, using_db = None, defaults = None, **kwargs):
+        """
+        Fetches the object if exists (filtering on the provided parameters),
+        else creates an instance with any unspecified parameters as default values.
+        """
+        if not defaults:
+            defaults = {}
+        instance = await cls.filter(**kwargs).first()
+        if instance:
+            return instance, False
+        return await cls.create(**defaults, **kwargs, using_db=using_db), True
+
 
     @classmethod
     async def create(cls, **kwargs):
@@ -321,7 +369,66 @@ class Model(metaclass=ModelMeta):
         return instance
 
     @classmethod
+    async def bulk_create(cls, objects, using_db = None) -> None:
+        """
+        Bulk insert operation:
+
+        .. note::
+            The bulk insert operation will do the minimum to ensure that the object
+            created in the DB has all the defaults and generated fields set,
+            but may be incomplete reference in Python.
+
+            e.g. ``IntField`` primary keys will not be populated.
+
+        This is recommend only for throw away inserts where you want to ensure optimal
+        insert performance.
+
+        .. code-block:: python3
+
+            User.bulk_create([
+                User(name="...", email="..."),
+                User(name="...", email="...")
+            ])
+
+        :param objects: List of objects to bulk create
+        """
+        mapper = cls.get_mapper(using_db=using_db)
+        await mapper.bulk_insert(objects)  # type: ignore
+
+
+    @classmethod
     def get_mapper(cls, using_db=None):
         db_name = using_db or cls._meta.db_name
         mapper = Postmodel.get_mapper(cls, db_name)
         return mapper
+
+    @classmethod
+    def check(cls) -> None:
+        """
+        Calls various checks to validate the model.
+
+        :raises ConfigurationError: If the model has not been configured correctly.
+        """
+        cls._check_together("unique_together")
+        cls._check_together("indexes")
+
+    @classmethod
+    def _check_together(cls, together: str) -> None:
+        """Check the value of "unique_together" option."""
+        _together = getattr(cls._meta, together)
+        if not isinstance(_together, (tuple, list)):
+            raise ConfigurationError(f"'{cls.__name__}.{together}' must be a list or tuple.")
+
+        if any(not isinstance(unique_fields, (tuple, list)) for unique_fields in _together):
+            raise ConfigurationError(
+                f"All '{cls.__name__}.{together}' elements must be lists or tuples."
+            )
+
+        for fields_tuple in _together:
+            for field_name in fields_tuple:
+                field = cls._meta.fields_map.get(field_name)
+
+                if not field:
+                    raise ConfigurationError(
+                        f"'{cls.__name__}.{together}' has no '{field_name}' field."
+                    )

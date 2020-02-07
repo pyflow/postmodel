@@ -124,6 +124,9 @@ class PostgresMapper(BaseDatabaseMapper):
         ]
         await self.db.execute_insert(self.insert_all_sql, values)
 
+    async def bulk_insert(self, instances):
+        raise NotImplementedError()
+
     async def delete(self, model_instance):
         ret = await self.db.execute_query(
             self.delete_sql, [self.meta.pk.to_db_value(model_instance.pk, model_instance)]
