@@ -9,11 +9,14 @@ import asyncpg
 from postmodel.exceptions import (OperationalError, 
         DBConnectionError, 
         IntegrityError, 
-        TransactionManagementError)
+        TransactionManagementError,
+        MultipleObjectsReturned,
+        DoesNotExist)
 from postmodel.main import Postmodel
 from .common import BaseTableSchemaGenerator
 from pypika import Parameter
-from pypika import Table, Query
+from pypika import Table, Query, PostgreSQLQuery
+import operator
 
 
 
@@ -78,7 +81,7 @@ class PostgresMapper(BaseDatabaseMapper):
         column_names = []
         columns = []
         self.columns = columns
-        self.column_name = column_names
+        self.column_names = column_names
         for name, field in self.meta.fields_map.items():
             column_names.append(name)
             columns.append(field)
@@ -124,8 +127,30 @@ class PostgresMapper(BaseDatabaseMapper):
         )
         return ret[0]
 
+    def _get_query_sql(self, queryset):
+        values = []
+        table = self.pika_table
+        query = PostgreSQLQuery.from_(table).select(*self.column_names)
+        for expr in queryset._expressions:
+            for key, value in expr.filters.items():
+                query = query.where(operator.eq(getattr(table, key), value))
+        if queryset._limit:
+            query = query.limit(queryset._limit)
+        sql = str(query.get_sql())
+        return sql, values
+
     async def query(self, queryset):
-        raise NotImplementedError()
+        sql, values= self._get_query_sql(queryset)
+        _, rows = await self.db.execute_query(sql, values)
+        if queryset._expect_single:
+            if len(rows) > 1:
+                raise MultipleObjectsReturned("Multiple objects returned, expected exactly one")
+            elif len(rows) == 0:
+                raise DoesNotExist("Object does not exist")
+        if queryset._return_single or queryset._expect_single:
+            return self.model_class(**rows[0])
+        else:
+            return [self.model_class(**row) for row in rows]
 
 class PostgresEngine(BaseDatabaseEngine):
     mapper_class = PostgresMapper

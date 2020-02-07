@@ -362,7 +362,7 @@ class QuerySet:
         queryset.db_name = db_name
         return queryset
 
-    async def __await__(self):
+    def __await__(self):
         return self._execute().__await__()
 
     async def __aiter__(self):
@@ -371,4 +371,4 @@ class QuerySet:
 
     async def _execute(self):
         mapper = self.model_class.get_mapper(self.db_name)
-        await mapper.query(self)
+        return await mapper.query(self)
