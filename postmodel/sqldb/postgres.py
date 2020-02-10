@@ -79,7 +79,6 @@ class PostgresMapper(BaseDatabaseMapper):
     def init(self):
         self.meta = self.model_class._meta
         self.pika_table = Table(self.meta.table)
-        self.update_cache = {}
         column_names = []
         columns = []
         self.columns = columns
@@ -103,6 +102,9 @@ class PostgresMapper(BaseDatabaseMapper):
         self.delete_table_sql = str(
             Query.from_(self.pika_table).delete().get_sql()
         )
+        self.drop_table_sql = str(
+            f"DROP TABLE IF EXISTS {self.meta.table};"
+        )
         self.update_cache = {}
 
     def parameter(self, pos: int) -> Parameter:
@@ -116,8 +118,11 @@ class PostgresMapper(BaseDatabaseMapper):
         sg = BaseTableSchemaGenerator(self.model_class._meta)
         await self.db.execute_script(sg.get_create_schema_sql())
     
-    async def delete_table(self):
+    async def clear_table(self):
         await self.db.execute_script(self.delete_table_sql)
+
+    async def delete_table(self):
+        await self.db.execute_script(self.drop_table_sql)
 
     async def insert(self, model_instance):
         values = [

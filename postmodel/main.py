@@ -39,9 +39,9 @@ class Postmodel:
     async def init(
         cls,
         default_db_url,
-        _create_db = False,
         extra_db_urls = {},
         modules = [],
+        _create_db = False
     ) -> None:
         if cls._inited:
             await cls._reset()

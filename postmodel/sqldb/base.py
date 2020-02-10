@@ -67,6 +67,9 @@ class BaseDatabaseMapper(object):
 
     async def create_table(self):
         raise NotImplementedError()
+    
+    async def clear_table(self):
+        raise NotImplementedError()
 
     async def delete_table(self):
         raise NotImplementedError()

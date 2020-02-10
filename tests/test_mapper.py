@@ -35,7 +35,7 @@ async def test_mapper_1():
     assert Postmodel._inited == True
     await Postmodel.generate_schemas()
     mapper = Postmodel.get_mapper(Foo)
-    await mapper.delete_table()
+    await mapper.clear_table()
     foo = await Foo.create(foo_id=1, name="hello", tag="hi", memo="a long text memo.")
     foo = await Foo.create(foo_id=2, name="hello", tag="hi", memo="a long text memo.")
     with pytest.raises(IntegrityError):
