@@ -80,4 +80,9 @@ async def test_mapper_1():
     ])
     count = await Foo.all().count()
     assert count == 11
+
+    await Foo.filter(name="bulk_create").update(tag="bulk_high")
+
+    for foo in await Foo.filter(name="bulk_create"):
+        assert foo.tag == 'bulk_high'
     await Postmodel.close()

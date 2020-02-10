@@ -184,8 +184,28 @@ class PostgresMapper(BaseDatabaseMapper):
         )
         return ret[0]
 
+    def _get_query_update_sql(self, updatequery):
+        values = []
+        table = self.pika_table
+        query = PostgreSQLQuery.update(table)
+        i = 0
+        for expr in updatequery.expressions:
+            for key, value in expr.filters.items():
+                query = query.where(self.filters.get_criterion(key, self.parameter(i)))
+                i += 1
+                values.append(value)
+
+        for key, value in updatequery.update_kwargs.items():
+            query = query.set(table[key], self.parameter(i))
+            values.append(value)
+            i += 1
+        sql = str(query.get_sql())
+        return sql, values
+
     async def query_update(self, updatequery):
-        raise NotImplementedError()
+        sql, values= self._get_query_update_sql(updatequery)
+        deleted, rows = await self.db.execute_query(sql, values)
+        return int(deleted)
 
     def _get_query_delete_sql(self, deletequery):
         values = []
