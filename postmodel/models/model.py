@@ -315,11 +315,27 @@ class Model(metaclass=ModelMeta):
         return QuerySet(cls).filter(*args, **kwargs).first()
 
 
-    async def save(self, using_db=None, update_fields = None) -> int:
+    async def save(self, using_db=None, update_fields = None, force=False) -> int:
         changed = self.changed
         if len(changed) == 0:
             return
-        #TODO: xxx
+        fileds = list(set(update_fields or ()) | set(changed))
+        condition_fields = []
+        if not force:
+            #condition_fields.append(('metaver', old_metaver))
+            pass
+
+        mapper = self.get_mapper(using_db=using_db)
+        if self._saved_in_db:
+            ret = await mapper.update(self, update_fields=fileds, condition_fields=condition_fields)
+            if ret == 0:
+                raise Exception('model save failed.')
+        else:
+            ret = await mapper.insert(self)
+            if ret == 0:
+                raise Exception('model insert failed.')
+            self._saved_in_db = True
+
         self.make_snapshot()
 
     async def delete(self, using_db=None) -> int:

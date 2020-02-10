@@ -79,6 +79,7 @@ class PostgresMapper(BaseDatabaseMapper):
     def init(self):
         self.meta = self.model_class._meta
         self.pika_table = Table(self.meta.table)
+        self.update_cache = {}
         column_names = []
         columns = []
         self.columns = columns
@@ -135,10 +136,58 @@ class PostgresMapper(BaseDatabaseMapper):
         ]
         await self.db.execute_many(self.insert_all_sql, values_list)
 
+    def _get_update_sql(self, instance, update_fields, condition_fields={}) -> str:
+        """
+        Generates the SQL for updating a model depending on provided update_fields.
+        Result is cached for performance.
+        """
+        key = ",".join(update_fields) if update_fields else ""
+
+        condition_keys = list(map(lambda x: x[0], condition_fields))
+        if len(condition_keys) > 0:
+            key = "{},{}".format(key, ','.join(condition_keys))
+        if key in self.update_cache:
+            return self.update_cache[key]
+
+        values = []
+        table = self.pika_table
+        query = PostgreSQLQuery.update(table)
+        count = 0
+        for field_name in update_fields or self.meta.fields_db_projection.keys():
+            db_field = self.meta.fields_db_projection[field_name]
+            field_object = self.meta.fields_map[field_name]
+            if not field_object.pk:
+                query = query.set(table[db_field], self.parameter(count))
+                values.append(field_object.to_db_value(getattr(instance, field_name), instance))
+                count += 1
+
+        query = query.where(table[self.meta.db_pk_field] == self.parameter(count))
+        values.append(self.meta.pk.to_db_value(instance.pk, instance))
+        count += 1
+        for k, v in condition_fields:
+            if k not in (update_fields or []):
+                query = query.where(table[k] == self.parameter(count))
+                values.append(v)
+                count += 1
+
+        sql = self.update_cache[key] = str(query.get_sql())
+        return sql, values
+
+    async def update(self, instance, update_fields, condition_fields=[]) -> int:
+        sql, values = self._get_update_sql(instance, update_fields, condition_fields)
+        ret = await self.db.execute_query(sql, values)
+        return ret[0]
+
+    async def delete(self, model_instance):
+        ret = await self.db.execute_query(
+            self.delete_sql, [self.meta.pk.to_db_value(model_instance.pk, model_instance)]
+        )
+        return ret[0]
+
     async def query_update(self, updatequery):
         raise NotImplementedError()
 
-    def _get_delete_sql(self, deletequery):
+    def _get_query_delete_sql(self, deletequery):
         values = []
         table = self.pika_table
         query = PostgreSQLQuery.from_(table)
@@ -153,12 +202,11 @@ class PostgresMapper(BaseDatabaseMapper):
         return sql, values
 
     async def query_delete(self, deletequery):
-        sql, values= self._get_delete_sql(deletequery)
+        sql, values= self._get_query_delete_sql(deletequery)
         deleted, rows = await self.db.execute_query(sql, values)
-        print(deleted, rows)
         return int(deleted)
 
-    def _get_count_sql(self, countquery):
+    def _get_query_count_sql(self, countquery):
         values = []
         table = self.pika_table
         query = PostgreSQLQuery.from_(table).select(fn.Count("*"))
@@ -172,15 +220,9 @@ class PostgresMapper(BaseDatabaseMapper):
         return sql, values
 
     async def query_count(self, countquery):
-        sql, values= self._get_count_sql(countquery)
+        sql, values= self._get_query_count_sql(countquery)
         _, rows = await self.db.execute_query(sql, values)
         return int(rows[0]['count'])
-
-    async def delete(self, model_instance):
-        ret = await self.db.execute_query(
-            self.delete_sql, [self.meta.pk.to_db_value(model_instance.pk, model_instance)]
-        )
-        return ret[0]
 
     def _get_query_sql(self, queryset):
         values = []

@@ -54,6 +54,10 @@ async def test_mapper_1():
     assert count == 2
 
     foo = await Foo.create(foo_id=3, name="hello3", tag="low", memo="3 is magic number")
+    foo.tag = "low3"
+    await foo.save()
+    foo = await Foo.get(foo_id=3)
+    assert foo.tag == 'low3'
     count = await Foo.all().count()
     assert count == 1
     print('count ', count)
