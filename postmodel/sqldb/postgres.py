@@ -16,6 +16,7 @@ from postmodel.main import Postmodel
 from .common import BaseTableSchemaGenerator, PikaTableFilters
 from pypika import Parameter
 from pypika import Table, Query, PostgreSQLQuery
+from pypika import functions as fn
 import operator
 from copy import deepcopy
 
@@ -125,16 +126,55 @@ class PostgresMapper(BaseDatabaseMapper):
         await self.db.execute_insert(self.insert_all_sql, values)
 
     async def bulk_insert(self, instances):
-        raise NotImplementedError()
+        values_list = [
+            [
+                column.to_db_value(getattr(model_instance, column.model_field_name), model_instance)
+                for column in self.columns
+            ]
+            for model_instance in instances
+        ]
+        await self.db.execute_many(self.insert_all_sql, values_list)
 
     async def query_update(self, updatequery):
         raise NotImplementedError()
 
+    def _get_delete_sql(self, deletequery):
+        values = []
+        table = self.pika_table
+        query = PostgreSQLQuery.from_(table)
+        i = 0
+        for expr in deletequery.expressions:
+            for key, value in expr.filters.items():
+                query = query.where(self.filters.get_criterion(key, self.parameter(i)))
+                i += 1
+                values.append(value)
+        query = query.delete()
+        sql = str(query.get_sql())
+        return sql, values
+
     async def query_delete(self, deletequery):
-        raise NotImplementedError()
+        sql, values= self._get_delete_sql(deletequery)
+        deleted, rows = await self.db.execute_query(sql, values)
+        print(deleted, rows)
+        return int(deleted)
+
+    def _get_count_sql(self, countquery):
+        values = []
+        table = self.pika_table
+        query = PostgreSQLQuery.from_(table).select(fn.Count("*"))
+        i = 0
+        for expr in countquery.expressions:
+            for key, value in expr.filters.items():
+                query = query.where(self.filters.get_criterion(key, self.parameter(i)))
+                i += 1
+                values.append(value)
+        sql = str(query.get_sql())
+        return sql, values
 
     async def query_count(self, countquery):
-        raise NotImplementedError()
+        sql, values= self._get_count_sql(countquery)
+        _, rows = await self.db.execute_query(sql, values)
+        return int(rows[0]['count'])
 
     async def delete(self, model_instance):
         ret = await self.db.execute_query(

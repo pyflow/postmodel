@@ -44,6 +44,36 @@ async def test_mapper_1():
     foo2 = await Foo.get(foo_id = 1)
     print("foo2>>", foo2)
     #await asyncio.sleep(6)
+
+    count = await Foo.get(foo_id = 1).count()
+    assert count == 1
+    count = await Foo.get(name = "hello").count()
+    assert count == 2
+
+    count = await Foo.get(name = "hello").delete()
+    assert count == 2
+
+    foo = await Foo.create(foo_id=3, name="hello3", tag="low", memo="3 is magic number")
+    count = await Foo.all().count()
+    assert count == 1
+    print('count ', count)
     ret = await foo.delete()
     print("delete ret>>", ret)
+    assert ret == 1
+
+    await Foo.bulk_create([
+        Foo(foo_id=4, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=5, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=6, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=7, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=8, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=9, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=10, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=11, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=12, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=13, name="bulk_create", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=14, name="bulk_create", tag="high", memo="bulk create rocks")
+    ])
+    count = await Foo.all().count()
+    assert count == 11
     await Postmodel.close()

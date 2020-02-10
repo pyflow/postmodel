@@ -401,7 +401,6 @@ class Model(metaclass=ModelMeta):
         for obj in objects:
             obj.make_snapshot()
 
-
     @classmethod
     def get_mapper(cls, using_db=None):
         db_name = using_db or cls._meta.db_name
