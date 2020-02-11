@@ -13,10 +13,12 @@ from postmodel.exceptions import (OperationalError,
         MultipleObjectsReturned,
         DoesNotExist)
 from postmodel.main import Postmodel
+from postmodel.models.query import QueryExpression
 from .common import BaseTableSchemaGenerator, PikaTableFilters
 from pypika import Parameter
 from pypika import Table, Query, PostgreSQLQuery
 from pypika import functions as fn
+from pypika.terms import EmptyCriterion
 import operator
 from copy import deepcopy
 
@@ -109,6 +111,38 @@ class PostgresMapper(BaseDatabaseMapper):
 
     def parameter(self, pos: int) -> Parameter:
         return Parameter("$%d" % (pos + 1,))
+
+    def _join_criterion(self, left, right, join_type):
+        print('_join_criterion:', left, join_type, right)
+        if join_type.upper() == "AND":
+            return left & right
+        elif join_type.upper() == "OR":
+            return left | right
+        raise Exception('join_type only support ("AND", "OR")')
+
+    def _expression_to_criterion(self, expr, param_index):
+        values = []
+        criterion = EmptyCriterion()
+        if expr.children:
+            for sub_expression in expr.children:
+                sub_criterion, sub_values = self._expression_to_criterion(
+                        sub_expression, param_index)
+                criterion = self._join_criterion(criterion, sub_criterion, expr.join_type)
+                param_index += len(sub_values)
+                values.extend(sub_values)
+        else:
+            for key, value in expr.filters.items():
+                sub_criterion = self.filters.get_criterion(key, self.parameter(param_index))
+                param_index += 1
+                criterion = self._join_criterion(criterion, sub_criterion, expr.join_type)
+                print('joined_criterion:', criterion)
+                values.append(value)
+        return criterion, values
+
+    def _expressions_to_criterion(self, expressions, param_index, join_type="AND"):
+        expr = QueryExpression(*expressions, join_type=join_type)
+        return self._expression_to_criterion(expr, param_index)
+
 
     async def explain(self, query) -> Any:
         sql = " ".join((self.EXPLAIN_PREFIX, query.get_sql()))
@@ -254,11 +288,14 @@ class PostgresMapper(BaseDatabaseMapper):
         table = self.pika_table
         query = PostgreSQLQuery.from_(table).select(*self.column_names)
         i = 0
-        for expr in queryset._expressions:
-            for key, value in expr.filters.items():
-                query = query.where(self.filters.get_criterion(key, self.parameter(i)))
-                i += 1
-                values.append(value)
+
+        criterion, where_values = self._expressions_to_criterion(
+            queryset._expressions, i
+        )
+        query = query.where(criterion)
+        values.extend(where_values)
+        i += len(where_values)
+
         if queryset._limit:
             query = query.limit(queryset._limit)
         sql = str(query.get_sql())

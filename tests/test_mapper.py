@@ -3,6 +3,7 @@ from postmodel import Postmodel, models
 import pytest
 from postmodel.exceptions import IntegrityError
 import asyncio
+from postmodel.models import QueryExpression, Q
 
 class Foo(models.Model):
     foo_id = models.IntField(pk=True)
@@ -85,4 +86,25 @@ async def test_mapper_1():
 
     for foo in await Foo.filter(name="bulk_create"):
         assert foo.tag == 'bulk_high'
+    await Postmodel.close()
+
+@pytest.mark.asyncio
+async def test_mapper_get_criterion():
+    await Postmodel.init('postgres://postgres@localhost:54320/test_db', modules=[__name__])
+    assert len(Postmodel._databases) == 1
+    mapper = Postmodel.get_mapper(Foo)
+    q1 = Q(foo_id__gt = 1)
+    q2 = Q(name = "bulk")
+    q = q1 & q2
+    assert q1.children == ()
+    criterion, values = mapper._expressions_to_criterion([q], 0)
+    sql = criterion.get_sql()
+    assert sql == '"foo_id">$1 AND "name"=$2'
+    assert values == [1, "bulk"]
+    qq = q1 | q2
+    print('qq:', type(qq), qq.join_type, qq.filters, qq.children)
+    criterion, values = mapper._expressions_to_criterion([qq], 1)
+    sql = criterion.get_sql()
+    assert sql == '"foo_id">$2 OR "name"=$3'
+    assert values == [1, "bulk"]
     await Postmodel.close()
