@@ -102,6 +102,16 @@ class BigIntField(Field):
         super().__init__(int, pk=pk, **kwargs)
 
 
+class AutoField(BigIntField):
+    def __init__(self, **kwargs) -> None:
+        super(AutoField, self).__init__(pk=True, **kwargs)
+
+
+class DataVersionField(BigIntField):
+    def __init__(self, **kwargs) -> None:
+        super(DataVersionField, self).__init__(pk=False, default=0, **kwargs)
+
+
 class SmallIntField(Field):
     """
     Small integer field. (16-bit signed)
