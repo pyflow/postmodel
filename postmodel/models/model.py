@@ -103,7 +103,7 @@ class MetaInfo:
             if hasattr(field, 'auto_value'):
                 self.auto_fields.append(field)
             if isinstance(field, DataVersionField):
-                if not self.dataverion_field:
+                if not self.dataversion_field:
                     self.dataversion_field = field_name
                 else:
                     raise Exception('model class can only have one DataVersionField.')
