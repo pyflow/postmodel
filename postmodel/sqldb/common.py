@@ -19,6 +19,8 @@ class BaseTableSchemaGenerator:
     FIELD_TYPE_MAP = {
         'IntField': 'INT',
         'BigIntField': 'BIGINT',
+        'AutoField': 'BIGSERIAL',
+        'DataVersionField': 'BIGINT',
         'SmallIntField': 'SMALLINT',
         'CharField': lambda x: f"VARCHAR({x.max_length})",
         'TextField': 'TEXT',

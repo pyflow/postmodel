@@ -4,7 +4,7 @@ from postmodel.exceptions import ConfigurationError, OperationalError
 from postmodel.main import Postmodel
 from collections import OrderedDict
 from .query import QuerySet, FilterBuilder
-from .fields import Field
+from .fields import Field, DataVersionField
 import re
 
 
@@ -29,6 +29,8 @@ class MetaInfo:
         "fields_db_projection",
         "fields_db_projection_reverse",
         "fields_map",
+        "auto_fields",
+        "dataversion_field",
         "unique_together",
         "indexes",
         "pk_attr",
@@ -49,6 +51,8 @@ class MetaInfo:
         self.fields_db_projection = OrderedDict()  # type: Dict[str,str]
         self.fields_db_projection_reverse = OrderedDict()  # type: Dict[str,str]
         self.fields_map = OrderedDict()  # type: Dict[str, fields.Field]
+        self.auto_fields = [] # type List[fields.Field]
+        self.dataversion_field = "" # type str
         self.pk_attr = getattr(meta, "pk_attr", "")  # type: str
         self.table_description = getattr(meta, "table_description", "")  # type: str
         self.pk = None  # type: fields.Field  # type: ignore
@@ -94,6 +98,15 @@ class MetaInfo:
         self.fields_db_projection_reverse = {
             value: key for key, value in self.fields_db_projection.items()
         }
+        for field_name in self.fields:
+            field = self.fields_map[field_name]
+            if hasattr(field, 'auto_value'):
+                self.auto_fields.append(field)
+            if isinstance(field, DataVersionField):
+                if not self.dataverion_field:
+                    self.dataversion_field = field_name
+                else:
+                    raise Exception('model class can only have one DataVersionField.')
 
 
 class ModelMeta(type):
@@ -209,8 +222,8 @@ class Model(metaclass=ModelMeta):
         for key in self._meta.fields_db_projection.keys():
             new_data[key] = deepcopy(getattr(self, key))
         self._snapshot_data = new_data
-    
-    @property
+
+
     def changed(self):
         now_data = dict()
         for key in self._meta.fields_db_projection.keys():
@@ -316,14 +329,19 @@ class Model(metaclass=ModelMeta):
 
 
     async def save(self, using_db=None, update_fields = None, force=False) -> int:
-        changed = self.changed
+        changed = self.changed()
         if len(changed) == 0:
             return
-        fileds = list(set(update_fields or ()) | set(changed))
+
         condition_fields = []
+        dataver_field_name = self._meta.dataversion_field
         if not force:
-            #condition_fields.append(('metaver', old_metaver))
-            pass
+            for field in self._meta.auto_fields:
+                field.auto_value(self)
+            if dataver_field_name:
+                condition_fields.append((dataver_field_name, self._snapshot_data[dataver_field_name]))
+
+        fileds = list(set(update_fields or ()) | set(self.changed()))
 
         mapper = self.get_mapper(using_db=using_db)
         if self._saved_in_db:

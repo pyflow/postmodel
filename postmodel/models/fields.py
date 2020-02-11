@@ -63,7 +63,7 @@ class Field:
         self.reference = reference
         self.description = description
 
-    def to_db_value(self, value: Any, instance) -> Any:
+    def to_db_value(self, value: Any) -> Any:
         if value is None or type(value) == self.type:  # pylint: disable=C0123
             return value
         return self.type(value)
@@ -110,6 +110,10 @@ class AutoField(BigIntField):
 class DataVersionField(BigIntField):
     def __init__(self, **kwargs) -> None:
         super(DataVersionField, self).__init__(pk=False, default=0, **kwargs)
+
+    def auto_value(self, model_instance):
+        current_value = getattr(model_instance, self.model_field_name)
+        setattr(model_instance, self.model_field_name, current_value+1)
 
 
 class SmallIntField(Field):
@@ -215,18 +219,11 @@ class DatetimeField(Field):
             return value
         return ciso8601.parse_datetime(value)
 
-    def to_db_value(
-        self, value: Optional[datetime.datetime], instance
-    ) -> Optional[datetime.datetime]:
-        if self.auto_now:
+    def auto_value(self, model_instance):
+        current_value = getattr(model_instance, self.model_field_name)
+        if self.auto_now or (self.auto_now_add and current_value is None):
             value = datetime.datetime.utcnow()
-            setattr(instance, self.model_field_name, value)
-            return value
-        if self.auto_now_add and getattr(instance, self.model_field_name) is None:
-            value = datetime.datetime.utcnow()
-            setattr(instance, self.model_field_name, value)
-            return value
-        return value
+            setattr(model_instance, self.model_field_name, value)
 
 
 class DateField(Field):
@@ -260,7 +257,7 @@ class TimeDeltaField(Field):
             return value
         return datetime.timedelta(microseconds=value)
 
-    def to_db_value(self, value: Optional[datetime.timedelta], instance) -> Optional[int]:
+    def to_db_value(self, value: Optional[datetime.timedelta]) -> Optional[int]:
         if value is None:
             return None
         return (value.days * 86400000000) + (value.seconds * 1000000) + value.microseconds
@@ -296,7 +293,7 @@ class JSONField(Field):
         self.encoder = encoder
         self.decoder = decoder
 
-    def to_db_value(self, value: Optional[Union[dict, list]], instance) -> Optional[str]:
+    def to_db_value(self, value: Optional[Union[dict, list]]) -> Optional[str]:
         if value is None:
             return None
         return self.encoder(value)
@@ -324,7 +321,7 @@ class UUIDField(Field):
                 kwargs["default"] = uuid.uuid4
         super().__init__(type=UUID, **kwargs)
 
-    def to_db_value(self, value: Any, instance) -> Optional[str]:
+    def to_db_value(self, value: Any) -> Optional[str]:
         if value is None:
             return None
         return str(value)

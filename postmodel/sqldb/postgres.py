@@ -158,7 +158,7 @@ class PostgresMapper(BaseDatabaseMapper):
 
     async def insert(self, model_instance):
         values = [
-            column.to_db_value(getattr(model_instance, column.model_field_name), model_instance)
+            column.to_db_value(getattr(model_instance, column.model_field_name))
             for column in self.columns
         ]
         await self.db.execute_insert(self.insert_all_sql, values)
@@ -166,7 +166,7 @@ class PostgresMapper(BaseDatabaseMapper):
     async def bulk_insert(self, instances):
         values_list = [
             [
-                column.to_db_value(getattr(model_instance, column.model_field_name), model_instance)
+                column.to_db_value(getattr(model_instance, column.model_field_name))
                 for column in self.columns
             ]
             for model_instance in instances
@@ -195,11 +195,11 @@ class PostgresMapper(BaseDatabaseMapper):
             field_object = self.meta.fields_map[field_name]
             if not field_object.pk:
                 query = query.set(table[db_field], self.parameter(count))
-                values.append(field_object.to_db_value(getattr(instance, field_name), instance))
+                values.append(field_object.to_db_value(getattr(instance, field_name)))
                 count += 1
 
         query = query.where(table[self.meta.db_pk_field] == self.parameter(count))
-        values.append(self.meta.pk.to_db_value(instance.pk, instance))
+        values.append(self.meta.pk.to_db_value(instance.pk))
         count += 1
         for k, v in condition_fields:
             if k not in (update_fields or []):
@@ -217,7 +217,7 @@ class PostgresMapper(BaseDatabaseMapper):
 
     async def delete(self, model_instance):
         ret = await self.db.execute_query(
-            self.delete_sql, [self.meta.pk.to_db_value(model_instance.pk, model_instance)]
+            self.delete_sql, [self.meta.pk.to_db_value(model_instance.pk)]
         )
         return ret[0]
 
@@ -243,7 +243,7 @@ class PostgresMapper(BaseDatabaseMapper):
 
     async def query_update(self, updatequery):
         sql, values= self._get_query_update_sql(updatequery)
-        deleted, rows = await self.db.execute_query(sql, values)
+        deleted, _ = await self.db.execute_query(sql, values)
         return int(deleted)
 
     def _get_query_delete_sql(self, deletequery):
@@ -265,7 +265,7 @@ class PostgresMapper(BaseDatabaseMapper):
 
     async def query_delete(self, deletequery):
         sql, values= self._get_query_delete_sql(deletequery)
-        deleted, rows = await self.db.execute_query(sql, values)
+        deleted, _ = await self.db.execute_query(sql, values)
         return int(deleted)
 
     def _get_query_count_sql(self, countquery):
