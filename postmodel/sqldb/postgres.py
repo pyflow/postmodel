@@ -113,7 +113,6 @@ class PostgresMapper(BaseDatabaseMapper):
         return Parameter("$%d" % (pos + 1,))
 
     def _join_criterion(self, left, right, join_type):
-        print('_join_criterion:', left, join_type, right)
         if join_type.upper() == "AND":
             return left & right
         elif join_type.upper() == "OR":
@@ -135,7 +134,6 @@ class PostgresMapper(BaseDatabaseMapper):
                 sub_criterion = self.filters.get_criterion(key, self.parameter(param_index))
                 param_index += 1
                 criterion = self._join_criterion(criterion, sub_criterion, expr.join_type)
-                print('joined_criterion:', criterion)
                 values.append(value)
         return criterion, values
 
@@ -228,11 +226,13 @@ class PostgresMapper(BaseDatabaseMapper):
         table = self.pika_table
         query = PostgreSQLQuery.update(table)
         i = 0
-        for expr in updatequery.expressions:
-            for key, value in expr.filters.items():
-                query = query.where(self.filters.get_criterion(key, self.parameter(i)))
-                i += 1
-                values.append(value)
+
+        criterion, where_values = self._expressions_to_criterion(
+            updatequery.expressions, i
+        )
+        query = query.where(criterion)
+        values.extend(where_values)
+        i += len(where_values)
 
         for key, value in updatequery.update_kwargs.items():
             query = query.set(table[key], self.parameter(i))
@@ -251,11 +251,14 @@ class PostgresMapper(BaseDatabaseMapper):
         table = self.pika_table
         query = PostgreSQLQuery.from_(table)
         i = 0
-        for expr in deletequery.expressions:
-            for key, value in expr.filters.items():
-                query = query.where(self.filters.get_criterion(key, self.parameter(i)))
-                i += 1
-                values.append(value)
+
+        criterion, where_values = self._expressions_to_criterion(
+            deletequery.expressions, i
+        )
+        query = query.where(criterion)
+        values.extend(where_values)
+        i += len(where_values)
+
         query = query.delete()
         sql = str(query.get_sql())
         return sql, values
@@ -270,11 +273,14 @@ class PostgresMapper(BaseDatabaseMapper):
         table = self.pika_table
         query = PostgreSQLQuery.from_(table).select(fn.Count("*"))
         i = 0
-        for expr in countquery.expressions:
-            for key, value in expr.filters.items():
-                query = query.where(self.filters.get_criterion(key, self.parameter(i)))
-                i += 1
-                values.append(value)
+
+        criterion, where_values = self._expressions_to_criterion(
+            countquery.expressions, i
+        )
+        query = query.where(criterion)
+        values.extend(where_values)
+        i += len(where_values)
+
         sql = str(query.get_sql())
         return sql, values
 
