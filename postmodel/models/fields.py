@@ -24,7 +24,7 @@ class Field:
 
     __slots__ = (
         "type",
-        "source_field",
+        "db_field",
         "pk",
         "default",
         "null",
@@ -42,7 +42,7 @@ class Field:
     def __init__(
         self,
         type=None,  # pylint: disable=W0622
-        source_field: Optional[str] = None,
+        db_field: Optional[str] = None,
         pk: bool = False,
         null: bool = False,
         default: Any = None,
@@ -53,7 +53,7 @@ class Field:
         **kwargs
     ) -> None:
         self.type = type
-        self.source_field = source_field
+        self.db_field = db_field
         self.pk = pk
         self.default = default
         self.null = null

@@ -71,7 +71,7 @@ class MetaInfo:
 
     def finalise_pk(self) -> None:
         self.pk = self.fields_map[self.pk_attr]
-        self.db_pk_field = self.pk.source_field or self.pk_attr
+        self.db_pk_field = self.pk.db_field or self.pk_attr
 
     def finalize_filters(self):
         for field_name, db_field in self.fields_db_projection.items():
@@ -134,7 +134,7 @@ class ModelMeta(type):
                     if pk_attr != None:
                         raise Exception('duplicated pk not allowed.')
                     pk_attr = key
-                fields_db_projection[key] = value.source_field or key
+                fields_db_projection[key] = value.db_field or key
         
         for key in fields_map.keys():
             attrs.pop(key)
