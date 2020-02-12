@@ -14,24 +14,24 @@ class Foo(models.Model):
         table = "foo_mapper"
 
 @pytest.mark.asyncio
-async def test_init_1():
-    await Postmodel.init('postgres://postgres@localhost:54320/test_db', modules=[__name__])
+async def test_init_1(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
     assert len(Postmodel._databases) == 1
     assert Postmodel._inited == True
     await Postmodel.generate_schemas()
     await Postmodel.close()
 
 @pytest.mark.asyncio
-async def test_init_2():
-    await Postmodel.init('postgres://postgres@localhost:54320/test_db', modules=[__name__])
+async def test_init_2(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
     assert len(Postmodel._databases) == 1
     assert Postmodel._inited == True
     await Postmodel.generate_schemas()
     await Postmodel.close()
 
 @pytest.mark.asyncio
-async def test_mapper_1():
-    await Postmodel.init('postgres://postgres@localhost:54320/test_db', modules=[__name__])
+async def test_mapper_1(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
     assert len(Postmodel._databases) == 1
     assert Postmodel._inited == True
     await Postmodel.generate_schemas()
@@ -89,8 +89,8 @@ async def test_mapper_1():
     await Postmodel.close()
 
 @pytest.mark.asyncio
-async def test_mapper_get_criterion():
-    await Postmodel.init('postgres://postgres@localhost:54320/test_db', modules=[__name__])
+async def test_mapper_get_criterion(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
     assert len(Postmodel._databases) == 1
     mapper = Postmodel.get_mapper(Foo)
     q1 = Q(foo_id__gt = 1)

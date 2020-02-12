@@ -7,8 +7,8 @@ from basepy.log import logger
 logger.add('stdout')
 
 @pytest.mark.asyncio
-async def test_init_1():
-    await Postmodel.init('postgres://postgres@localhost:54320/test_db', modules=[__name__])
+async def test_init_1(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
     db = Postmodel.get_database()
     assert db != None
     await db.execute_script('''
