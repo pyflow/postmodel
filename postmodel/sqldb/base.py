@@ -103,7 +103,10 @@ class BaseDatabaseEngine(object):
         self.config = copy.deepcopy(self.default_config)
         self.config.update(config)
         self.parameters = copy.deepcopy(self.default_parameters)
-        self.parameters.update(parameters)
+        for k, v in self.parameters.items():
+            if k in parameters:
+                self.parameters[k] = type(v)(parameters[k])
+
 
     async def init(self):
         raise NotImplementedError()

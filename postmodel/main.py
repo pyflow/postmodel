@@ -18,12 +18,13 @@ from postmodel.sqldb.base import current_transaction_map
 try:
     from contextvars import ContextVar
 except ImportError:  # pragma: nocoverage
-    from aiocontextvars import ContextVar  # type: ignore
+    from aiocontextvars import ContextVar  # pragma: nocoverage
 
 
 class Postmodel:
     DATABASE_CLASS = {
         'postgres': ('postmodel.sqldb.postgres', 'PostgresEngine'),
+        'postgresql': ('postmodel.sqldb.postgres', 'PostgresEngine'),
     }
     _databases = {}
     _mapper_cache = {}
@@ -87,7 +88,7 @@ class Postmodel:
         params: dict = {}
 
         for key, value in parse_qs(url.query).items():
-            params[key] = value
+            params[key] = value[0]
 
         return db_type, config, params
 
@@ -114,7 +115,7 @@ class Postmodel:
 
         if model_names:
             if not isinstance(model_names, List):
-                raise Exception('__models__ must be list of model names')
+                raise ConfigurationError('__models__ must be list of model names')
             possible_models = [(model_name, getattr(module, model_name)) for model_name in model_names]
         else:
             possible_models = [(attr_name, getattr(module, attr_name)) for attr_name in dir(module)]

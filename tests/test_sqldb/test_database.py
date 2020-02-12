@@ -7,7 +7,7 @@ from basepy.log import logger
 logger.add('stdout')
 
 @pytest.mark.asyncio
-async def test_init_1(db_url):
+async def test_database_1(db_url):
     await Postmodel.init(db_url, modules=[__name__])
     db = Postmodel.get_database()
     assert db != None

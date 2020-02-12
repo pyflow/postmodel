@@ -22,7 +22,7 @@ def run_async(coro: Coroutine) -> None:
 
         async def do_stuff():
             await Postmodel.init(
-                db_url='sqlite://db.sqlite3',
+                'postgres://postgres@127.0.0.1:54320/test_db',
                 modules=['app.models']
             )
 

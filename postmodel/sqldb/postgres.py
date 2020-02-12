@@ -343,6 +343,13 @@ class PostgresMapper(BaseDatabaseMapper):
 class PostgresEngine(BaseDatabaseEngine):
     mapper_class = PostgresMapper
     default_config = {
+        'username': 'postgres',
+        'password': '',
+        'db_path': '',
+        'hostname': '127.0.0.1',
+        'port': 5432
+    }
+    default_parameters = {
         'min_size': 10,
         'max_size': 30,
     }
