@@ -25,5 +25,5 @@ from .query import (
 )
 
 from .functions import (
-    Trim
+    Function
 )

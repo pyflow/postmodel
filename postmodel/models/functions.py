@@ -7,6 +7,7 @@ class Function:
 
     def __init__(self, field_name, *args, **kwargs) -> None:
         self.field_name = field_name
+        self.args = args
 
 class Trim(Function):
     pass

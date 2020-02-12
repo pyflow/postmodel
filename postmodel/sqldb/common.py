@@ -5,6 +5,7 @@ import operator
 from pypika import functions
 from pypika.enums import SqlTypes
 from copy import deepcopy
+from postmodel.models.functions import Function
 
 class BaseTableSchemaGenerator:
     DIALECT = "sql"
@@ -231,3 +232,42 @@ class PikaTableFilters:
         ff = self.filters.get(key)
         operator_func = ff['operator']
         return operator_func(ff['pika_field'], value)
+
+
+class FunctionResolve:
+    functions_map = {
+        'Trim': functions.Trim,
+        'Length': functions.Length,
+        'Coalesce': functions.Coalesce,
+        'Lower': functions.Lower,
+        'Upper': functions.Upper,
+        'Count': functions.Count,
+        'Sum': functions.Sum,
+        'Max': functions.Max,
+        'Min': functions.Min,
+        'Avg': functions.Avg
+    }
+    def __init__(self, func):
+        self.func = func
+        self.func_name = type(func).__name__
+
+    def resolve(self, table):
+        func = self.functions_map.get(self.func_name)
+        if not func:
+            raise Exception(f'no resolver for {self.func_name}')
+        args = [getattr(table, self.func.field_name)]
+        if self.func.args:
+            for arg in self.func.args:
+                if isinstance(arg, Function):
+                    args.append(FunctionResolve(arg).resolve(table))
+                else:
+                    args.append(arg)
+        return func(*args)
+
+    @classmethod
+    def resolve_value(cls, value, table):
+        if isinstance(value, Function):
+            fn = FunctionResolve(value).resolve(table)
+            return fn, None
+        else:
+            return None, value

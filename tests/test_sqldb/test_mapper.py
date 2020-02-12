@@ -4,6 +4,7 @@ import pytest
 from postmodel.exceptions import IntegrityError
 import asyncio
 from postmodel.models import QueryExpression, Q
+from postmodel.models import functions as fn
 
 class Foo(models.Model):
     foo_id = models.IntField(pk=True)
@@ -107,4 +108,27 @@ async def test_mapper_get_criterion(db_url):
     sql = criterion.get_sql()
     assert sql == '"foo_id">$2 OR "name"=$3'
     assert values == [1, "bulk"]
+    await Postmodel.close()
+
+@pytest.mark.asyncio
+async def test_mapper_functions_1(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
+    assert len(Postmodel._databases) == 1
+    await Postmodel.generate_schemas()
+    mapper = Postmodel.get_mapper(Foo)
+    await mapper.clear_table()
+    await Foo.bulk_create([
+        Foo(foo_id=4, name="High", tag="high", memo="bulk create rocks"),
+        Foo(foo_id=5, name="meDiUM", tag="medium", memo="bulk create rocks"),
+        Foo(foo_id=6, name="LOW", tag="low", memo="bulk create rocks"),
+        Foo(foo_id=7, name="HiGH", tag="high", memo="bulk create rocks")
+    ])
+    count = await Foo.all().count()
+    assert count == 4
+
+    foo = await Foo.all().filter(name = fn.Upper('tag'))
+    assert len(foo) == 1
+    foo = foo[0]
+    assert foo.foo_id == 6
+
     await Postmodel.close()

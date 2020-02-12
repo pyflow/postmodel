@@ -1,20 +1,23 @@
 from typing import Any, List, Optional, Sequence, Tuple, Type, Union
 from functools import wraps
 from .base import BaseDatabaseEngine, BaseDatabaseMapper
-from .base import (TransactedConnections, 
+from .base import (TransactedConnections,
         TransactedConnectionProxy,
         TransactedConnectionWrapper)
 import asyncio
 import asyncpg
-from postmodel.exceptions import (OperationalError, 
-        DBConnectionError, 
-        IntegrityError, 
+from postmodel.exceptions import (OperationalError,
+        DBConnectionError,
+        IntegrityError,
         TransactionManagementError,
         MultipleObjectsReturned,
         DoesNotExist)
 from postmodel.main import Postmodel
 from postmodel.models.query import QueryExpression
-from .common import BaseTableSchemaGenerator, PikaTableFilters
+from .common import (
+        BaseTableSchemaGenerator,
+        PikaTableFilters,
+        FunctionResolve)
 from pypika import Parameter
 from pypika import Table, Query, PostgreSQLQuery
 from pypika import functions as fn
@@ -131,10 +134,16 @@ class PostgresMapper(BaseDatabaseMapper):
                 values.extend(sub_values)
         else:
             for key, value in expr.filters.items():
-                sub_criterion = self.filters.get_criterion(key, self.parameter(param_index))
-                param_index += 1
+                fn, value = FunctionResolve.resolve_value(value, self.pika_table)
+                param = fn if fn else self.parameter(param_index)
+
+                sub_criterion = self.filters.get_criterion(key, param)
                 criterion = self._join_criterion(criterion, sub_criterion, expr.join_type)
-                values.append(value)
+
+                if value:
+                    param_index += 1
+                    values.append(value)
+
         return criterion, values
 
     def _expressions_to_criterion(self, expressions, param_index, join_type="AND"):
