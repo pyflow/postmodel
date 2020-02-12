@@ -4,6 +4,8 @@ source =
     postmodel
 omit =
     postmodel/ext/*
+    postmodel/__init__.py
+
 [report]
 show_missing = True
 
