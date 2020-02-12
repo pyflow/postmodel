@@ -311,8 +311,19 @@ class PostgresMapper(BaseDatabaseMapper):
         values.extend(where_values)
         i += len(where_values)
 
+        if queryset._distinct:
+            query = query.distinct()
+
         if queryset._limit:
             query = query.limit(queryset._limit)
+
+        if queryset._orderings:
+            for field_name, order in queryset._orderings:
+                query = query.orderby(getattr(table, field_name), order=order)
+
+        if queryset._offset:
+            query = query.offset(queryset._offset)
+
         sql = str(query.get_sql())
         return sql, values
 

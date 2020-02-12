@@ -179,13 +179,11 @@ class QuerySet:
         self._expect_single = False
         self._return_single = False
 
-        self._count: bool = False
         self._limit: Optional[int] = None
         self._offset: Optional[int] = None
         self._orderings: List[Tuple[str, Any]] = []
         self._expressions: List[QueryExpression] = []
         self._distinct: bool = False
-        self._having: Dict[str, Any] = {}
 
     def _clone(self):
         return self

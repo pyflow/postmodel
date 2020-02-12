@@ -90,6 +90,49 @@ async def test_mapper_1(db_url):
     await Postmodel.close()
 
 @pytest.mark.asyncio
+async def test_mapper_complex_1(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
+    assert len(Postmodel._databases) == 1
+    assert Postmodel._inited == True
+    await Postmodel.generate_schemas()
+    mapper = Postmodel.get_mapper(Foo)
+    await mapper.clear_table()
+
+    await Foo.bulk_create([
+        Foo(foo_id=4, name="1", tag="b", memo="bulk create rocks"),
+        Foo(foo_id=5, name="2", tag="e", memo="bulk create rocks"),
+        Foo(foo_id=6, name="1", tag="a", memo="bulk create rocks"),
+        Foo(foo_id=7, name="4", tag="c", memo="bulk create rocks"),
+        Foo(foo_id=8, name="3", tag="f", memo="bulk create rocks"),
+        Foo(foo_id=9, name="2", tag="g", memo="bulk create rocks"),
+        Foo(foo_id=10, name="4", tag="j", memo="bulk create rocks"),
+        Foo(foo_id=11, name="3", tag="h", memo="bulk create rocks"),
+        Foo(foo_id=12, name="4", tag="o", memo="bulk create rocks"),
+    ])
+    foo_list = await Foo.all().order_by("name", "-tag")
+    assert len(foo_list) == 9
+
+    first = foo_list[0]
+    assert first.foo_id == 4
+    assert foo_list[1].foo_id == 6
+    assert foo_list[2].foo_id == 9
+    assert foo_list[-1].foo_id == 7
+
+    foo_list = await Foo.all().order_by("name", "-tag").limit(4)
+    assert len(foo_list) == 4
+    assert foo_list[-1].foo_id == 5
+
+    foo_list = await Foo.all().order_by("name", "-tag").offset(2).limit(4)
+    assert len(foo_list) == 4
+    assert foo_list[-1].foo_id == 8
+
+    foo_list = await Foo.all().order_by("name", "-tag").distinct().offset(2).limit(4)
+    assert len(foo_list) == 4
+    assert foo_list[-1].foo_id == 8
+
+    await Postmodel.close()
+
+@pytest.mark.asyncio
 async def test_mapper_get_criterion(db_url):
     await Postmodel.init(db_url, modules=[__name__])
     assert len(Postmodel._databases) == 1
