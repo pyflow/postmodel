@@ -33,7 +33,7 @@ class BaseTableSchemaGenerator:
         'FloatField': 'DOUBLE PRECISION',
         'JSONField': 'JSONB',
         'UUIDField': 'UUID',
-        'BinaryField': "BLOB"
+        'BinaryField': "BYTEA"
     }
     def __init__(self, meta_info) -> None:
         self.meta_info = meta_info

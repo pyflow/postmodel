@@ -2,6 +2,8 @@
 from .fields import(
     IntField,
     BigIntField,
+    AutoField,
+    DataVersionField,
     SmallIntField,
     CharField,
     TextField,

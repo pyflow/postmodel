@@ -104,12 +104,15 @@ class BigIntField(Field):
 
 class AutoField(BigIntField):
     def __init__(self, **kwargs) -> None:
+        kwargs.pop('pk', None)
         super(AutoField, self).__init__(pk=True, **kwargs)
 
 
 class DataVersionField(BigIntField):
     def __init__(self, **kwargs) -> None:
-        super(DataVersionField, self).__init__(pk=False, default=0, **kwargs)
+        kwargs.pop('pk', None)
+        default = kwargs.pop('default', 0)
+        super(DataVersionField, self).__init__(pk=False, default=default, **kwargs)
 
     def auto_value(self, model_instance):
         current_value = getattr(model_instance, self.model_field_name)
