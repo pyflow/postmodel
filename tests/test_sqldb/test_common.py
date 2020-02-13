@@ -1,8 +1,13 @@
 
 
-from postmodel.sqldb.common import BaseTableSchemaGenerator
+from postmodel.sqldb.common import BaseTableSchemaGenerator, FunctionResolve
+from postmodel.models.functions import Function, Max, Length, Avg, Coalesce, Trim
 from postmodel import models
+from pypika import Table
+import pytest
 
+class CastFunction(Function):
+    pass
 
 class Foo(models.Model):
     foo_id = models.IntField(pk=True)
@@ -21,3 +26,16 @@ class Foo(models.Model):
 def test_table_create_schema_1():
     sg = BaseTableSchemaGenerator(Foo._meta)
     print(sg.get_create_schema_sql())
+
+
+def test_function_resolve():
+    table = Table('test_func_table')
+    tc = CastFunction('field_a')
+    fr = FunctionResolve(tc)
+    with pytest.raises(Exception):
+        fr.resolve(table)
+    
+    fn = Coalesce('field_c', None, 'abc', Trim('field_b'))
+    fr = FunctionResolve(fn)
+    ret = fr.resolve(table)
+    assert ret.get_sql() == "COALESCE(field_c,NULL,'abc',TRIM(field_b))"

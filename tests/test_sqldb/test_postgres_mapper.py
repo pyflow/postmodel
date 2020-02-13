@@ -5,34 +5,7 @@ from postmodel.exceptions import IntegrityError
 import asyncio
 from postmodel.models import QueryExpression, Q
 from postmodel.models import functions as fn
-
-class Foo(models.Model):
-    foo_id = models.IntField(pk=True)
-    name = models.CharField(max_length=255, index=True)
-    tag = models.CharField(max_length=128)
-    memo = models.TextField()
-    class Meta:
-        table = "foo_mapper"
-
-class Book(models.Model):
-    id = models.AutoField()
-    name = models.CharField(max_length=255, index=True)
-    summary = models.TextField()
-    pages = models.SmallIntField()
-    words = models.BigIntField()
-    cover_img = models.BinaryField()
-    created = models.DatetimeField(auto_now_add=True)
-    updated = models.DatetimeField(auto_now=True)
-    data_ver = models.DataVersionField()
-
-
-class DecimalFields(models.Model):
-    id = models.AutoField(pk=True)
-    decimal = models.DecimalField(max_digits=18, decimal_places=4)
-    decimal_nodec = models.DecimalField(max_digits=18, decimal_places=0)
-    decimal_null = models.DecimalField(max_digits=18, decimal_places=4, null=True)
-
-
+from tests.testmodels import Foo, Book
 
 @pytest.mark.asyncio
 async def test_init_1(db_url):

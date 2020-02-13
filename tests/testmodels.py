@@ -2,6 +2,26 @@
 from postmodel import models
 import uuid
 
+class Foo(models.Model):
+    foo_id = models.IntField(pk=True)
+    name = models.CharField(max_length=255, index=True)
+    tag = models.CharField(max_length=128)
+    memo = models.TextField()
+    class Meta:
+        table = "foo_mapper"
+
+class Book(models.Model):
+    id = models.AutoField()
+    name = models.CharField(max_length=255, index=True)
+    summary = models.TextField()
+    pages = models.SmallIntField()
+    words = models.BigIntField()
+    cover_img = models.BinaryField()
+    created = models.DatetimeField(auto_now_add=True)
+    updated = models.DatetimeField(auto_now=True)
+    data_ver = models.DataVersionField()
+
+
 class IntFieldsModel(models.Model):
     id = models.IntField(pk=True)
     intnum = models.IntField()

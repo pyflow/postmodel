@@ -8,6 +8,9 @@ from postmodel.exceptions import ConfigurationError, DBConnectionError
 class Foo(models.Model):
     foo_id = models.IntField(pk=True)
 
+    class Meta:
+        table = "foo_init"
+
 @pytest.mark.asyncio
 async def test_init_1(db_url):
     await Postmodel.init(db_url, modules=[__name__])

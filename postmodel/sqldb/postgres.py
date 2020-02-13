@@ -31,9 +31,9 @@ def translate_exceptions(func):
     async def translate_exceptions_(self, *args):
         try:
             return await func(self, *args)
-        except asyncpg.SyntaxOrAccessError as exc:
+        except asyncpg.SyntaxOrAccessError as exc: # pragma: nocoverage
             raise OperationalError(exc)
-        except asyncpg.IntegrityConstraintViolationError as exc:
+        except asyncpg.IntegrityConstraintViolationError as exc: 
             raise IntegrityError(exc)
         except asyncpg.InvalidTransactionStateError as exc:  # pragma: nocoverage
             raise TransactionManagementError(exc)
@@ -372,20 +372,22 @@ class PostgresEngine(BaseDatabaseEngine):
         self._pool = None
         self._db_url = f'postgresql://{self.user}:{self.password}@{self.host}:{self.port}/'
     
-    async def init(self):
+    async def init(self, create_db=True):
         if not self._pool:
-            await self._create_pool()
+            await self._create_pool(create_db=create_db)
 
     async def _create_pool(self, create_db=True):
         if self._pool:	
             return	
         try:	
             self._pool = await asyncpg.create_pool(None, password=self.password, **self._conn_params)	
-        except asyncpg.InvalidCatalogNameError:
+        except asyncpg.InvalidCatalogNameError as ex:
             if create_db:
                 await self.db_create()	
-                self._pool = await asyncpg.create_pool(None, password=self.password, **self._conn_params)	
-        except:	
+                self._pool = await asyncpg.create_pool(None, password=self.password, **self._conn_params)
+            else:
+                raise DBConnectionError(f"Can't establish connection to database {self.database}")
+        except: # pragma: nocoverage
             raise DBConnectionError(f"Can't establish connection to database {self.database}")
     
     async def close(self) -> None:
@@ -403,7 +405,7 @@ class PostgresEngine(BaseDatabaseEngine):
         conn = await asyncpg.connect(self._db_url)
         try:
             await conn.execute(f'CREATE DATABASE "{self.database}" OWNER "{self.user}"')
-        except Exception as e:
+        except Exception as e: # pragma: nocoverage
             raise OperationalError(f"create database {self.database}, error: {str(e)}")
         await conn.close()
 
@@ -411,7 +413,7 @@ class PostgresEngine(BaseDatabaseEngine):
         await self.close()
         conn = await asyncpg.connect(self._db_url)
         try:
-            await conn.execute(f'DROP DATABASE "{self.database}"')
+            await conn.execute(f'DROP DATABASE IF EXISTS "{self.database}"')
         except Exception as e:  # pragma: nocoverage
             raise OperationalError(f"drop database {self.database}, error: {str(e)}")
         await conn.close()
@@ -426,7 +428,7 @@ class PostgresEngine(BaseDatabaseEngine):
     def _current_transacted_conn(self):
         try:
             return TransactedConnections.get(self.name)
-        except:
+        except: # pragma: nocoverage
             return None 
 
     def acquire_connection(self, timeout=None):
