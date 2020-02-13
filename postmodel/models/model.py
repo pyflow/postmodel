@@ -78,7 +78,7 @@ class MetaInfo:
             filters = FilterBuilder.get_filters_for_field(field_name, db_field)
             self.filters[field_name] = filters
 
-    def get_filter(self, key: str) -> dict:
+    def get_filter(self, key: str) -> dict: # pragma: nocoverage
         return self.filters.get(key, None)
 
     def finalise_model(self) -> None:
@@ -256,7 +256,7 @@ class Model(metaclass=ModelMeta):
         return "<{}>".format(self.__class__.__name__)
 
     def __hash__(self) -> int:
-        if not self.pk:
+        if not self.pk: # pragma: nocoverage
             raise TypeError("Model instances without id are unhashable")
         return hash(self.pk)
 
