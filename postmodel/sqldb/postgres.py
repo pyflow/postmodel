@@ -336,6 +336,8 @@ class PostgresMapper(BaseDatabaseMapper):
             elif len(rows) == 0:
                 raise DoesNotExist("Object does not exist")
         if queryset._return_single or queryset._expect_single:
+            if len(rows) == 0:
+                return None
             return self.model_class._init_from_db(**rows[0])
         else:
             return [self.model_class._init_from_db(**row) for row in rows]
