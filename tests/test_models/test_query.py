@@ -1,6 +1,7 @@
 
-from postmodel.models.query import Q
-from postmodel.exceptions import OperationalError
+from postmodel.models.query import Q, QuerySet
+from postmodel.exceptions import OperationalError, FieldError
+from tests.testmodels import Foo
 import pytest
 
 def test_q_basic():
@@ -61,3 +62,22 @@ def test_q_compound_and():
     assert q.filters == {}
     assert q.join_type == "AND"
 
+
+def test_queryset_1():
+    qs = QuerySet(Foo)
+    qs_all = qs.all()
+    assert qs.model_class == qs_all.model_class
+    assert qs.fields == qs_all.fields
+
+    with pytest.raises(FieldError):
+        qs.order_by('-wrongname')
+
+    with pytest.raises(TypeError):
+        qs.filter(object())
+    
+    with pytest.raises(TypeError):
+        qs.exclude(object())
+    
+    qs_one_or_none = qs.get_or_none()
+    assert qs_one_or_none._limit == 1
+    assert qs_one_or_none._return_single == 1

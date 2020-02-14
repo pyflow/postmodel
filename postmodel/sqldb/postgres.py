@@ -331,7 +331,6 @@ class PostgresMapper(BaseDatabaseMapper):
     async def query(self, queryset):
         sql, values= self._get_query_sql(queryset)
         _, rows = await self.db.execute_query(sql, values)
-        print("query>>>>", rows)
         if queryset._expect_single:
             if len(rows) > 1:
                 raise MultipleObjectsReturned("Multiple objects returned, expected exactly one")
