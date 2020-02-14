@@ -185,18 +185,35 @@ class PostgresMapper(BaseDatabaseMapper):
         ]
         await self.db.execute_many(self.insert_all_sql, values_list)
 
-    def _get_update_sql(self, instance, update_fields, condition_fields={}) -> str:
-        """
-        Generates the SQL for updating a model depending on provided update_fields.
-        Result is cached for performance.
-        """
+    def _get_update_cached(self, instance, update_fields, condition_fields={}):
         key = ",".join(update_fields) if update_fields else ""
 
         condition_keys = list(map(lambda x: x[0], condition_fields))
         if len(condition_keys) > 0:
             key = "{},{}".format(key, ','.join(condition_keys))
-        if key in self.update_cache:
-            return self.update_cache[key]
+        if key not in self.update_cache:
+            return key, None, []
+        sql = self.update_cache[key]
+        values = []
+        for field_name in update_fields or self.meta.fields_db_projection.keys():
+            field_object = self.meta.fields_map[field_name]
+            if not field_object.pk:
+                values.append(field_object.to_db_value(getattr(instance, field_name)))
+
+        values.append(self.meta.pk.to_db_value(instance.pk))
+        for _, v in condition_fields:
+            values.append(v)
+
+        return key, sql, values
+
+    def _get_update_sql(self, instance, update_fields, condition_fields={}) -> str:
+        """
+        Generates the SQL for updating a model depending on provided update_fields.
+        Result is cached for performance.
+        """
+        key, sql, values = self._get_update_cached(instance, update_fields, condition_fields)
+        if sql:
+            return sql, values
 
         values = []
         table = self.pika_table
@@ -214,10 +231,9 @@ class PostgresMapper(BaseDatabaseMapper):
         values.append(self.meta.pk.to_db_value(instance.pk))
         count += 1
         for k, v in condition_fields:
-            if k not in (update_fields or []):
-                query = query.where(table[k] == self.parameter(count))
-                values.append(v)
-                count += 1
+            query = query.where(table[k] == self.parameter(count))
+            values.append(v)
+            count += 1
 
         sql = self.update_cache[key] = str(query.get_sql())
         return sql, values

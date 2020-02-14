@@ -52,6 +52,9 @@ class IntegrityError(OperationalError):
     The IntegrityError exception is raised when there is an integrity error.
     """
 
+class StaleObjectError(OperationalError):
+    """
+    """
 
 class NoValuesFetched(OperationalError):
     """

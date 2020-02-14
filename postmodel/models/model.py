@@ -1,6 +1,6 @@
 from copy import copy, deepcopy
 
-from postmodel.exceptions import ConfigurationError, OperationalError
+from postmodel.exceptions import ConfigurationError, OperationalError, StaleObjectError
 from postmodel.main import Postmodel
 from collections import OrderedDict
 from .query import QuerySet, FilterBuilder
@@ -275,6 +275,10 @@ class Model(metaclass=ModelMeta):
     def pk(self, value):
         setattr(self, self._meta.pk_attr, value)
 
+    def _auto_values(self):
+        for field in self._meta.auto_fields:
+            field.auto_value(self)
+
     @classmethod
     def first(cls):
         """
@@ -337,9 +341,8 @@ class Model(metaclass=ModelMeta):
         condition_fields = []
         dataver_field_name = self._meta.dataversion_field
         if not force:
-            for field in self._meta.auto_fields:
-                field.auto_value(self)
-            if dataver_field_name:
+            self._auto_values()
+            if dataver_field_name and dataver_field_name in self._snapshot_data:
                 condition_fields.append((dataver_field_name, self._snapshot_data[dataver_field_name]))
 
         fileds = list(set(update_fields or ()) | set(self.changed()))
@@ -348,11 +351,11 @@ class Model(metaclass=ModelMeta):
         if self._saved_in_db:
             ret = await mapper.update(self, update_fields=fileds, condition_fields=condition_fields)
             if ret == 0:
-                raise Exception('model save failed.')
+                raise StaleObjectError('model save failed.')
         else:
             ret = await mapper.insert(self)
-            if ret == 0:
-                raise Exception('model insert failed.')
+            if ret == 0: # pragma: nocoverage
+                raise StaleObjectError('model insert failed.')
             self._saved_in_db = True
 
         self.make_snapshot()
@@ -400,6 +403,7 @@ class Model(metaclass=ModelMeta):
             await user.save()
         """
         instance = cls(**kwargs)
+        instance._auto_values()
         db = kwargs.get("using_db") or cls._meta.db_name
         mapper = cls.get_mapper(using_db=db)
         await mapper.insert(instance)
@@ -432,6 +436,8 @@ class Model(metaclass=ModelMeta):
         :param objects: List of objects to bulk create
         """
         mapper = cls.get_mapper(using_db=using_db)
+        for obj in objects:
+            obj._auto_values()
         await mapper.bulk_insert(objects)  # type: ignore
         for obj in objects:
             obj.make_snapshot()

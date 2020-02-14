@@ -3,6 +3,7 @@ from postmodel import Postmodel, models
 import pytest
 from postmodel.exceptions import (
     IntegrityError,
+    StaleObjectError,
     OperationalError,
     DoesNotExist,
     MultipleObjectsReturned)
@@ -150,4 +151,42 @@ async def test_api_queries(db_url):
 
     await CharFieldsModel.all().delete()
 
+    await Postmodel.close()
+
+
+@pytest.mark.asyncio
+async def test_api_updates(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
+    assert len(Postmodel._databases) == 1
+    assert Postmodel._inited == True
+    mapper = Postmodel.get_mapper(Book)
+    await mapper.delete_table()
+
+    await Postmodel.generate_schemas()
+    
+    await Book.create(id=1, name='learning python', description="learn how to write python program.")
+    m = await Book.get(id=1)
+    m1 = await Book.get(id=1)
+    assert m.data_ver == 1
+    assert m1.data_ver == 1
+    m.description = "modified description"
+    await m.save()
+    m = await Book.get(id=1)
+    assert m.data_ver == 2
+    m1.description = "third description"
+    with pytest.raises(Exception):
+        await m1.save()
+    await m1.save(force=True)
+    m = await Book.get(id=1)
+    assert m.description == 'third description'
+    assert m.data_ver == 2
+    m.pk = 3
+    with pytest.raises(StaleObjectError):
+        await m.save()
+    with pytest.raises(StaleObjectError):
+        await m.save()
+
+    m = Book(id=1, name="book1", description="should not in database.")
+    with pytest.raises(Exception):
+        await m.save()
     await Postmodel.close()

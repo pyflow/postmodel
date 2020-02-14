@@ -11,12 +11,9 @@ class Foo(models.Model):
         table = "foo_mapper"
 
 class Book(models.Model):
-    id = models.AutoField()
+    id = models.IntField(pk=True)
     name = models.CharField(max_length=255, index=True)
-    summary = models.TextField()
-    pages = models.SmallIntField()
-    words = models.BigIntField()
-    cover_img = models.BinaryField()
+    description = models.TextField()
     created = models.DatetimeField(auto_now_add=True)
     updated = models.DatetimeField(auto_now=True)
     data_ver = models.DataVersionField()
