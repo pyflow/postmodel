@@ -21,6 +21,8 @@ class Book(models.Model):
     updated = models.DatetimeField(auto_now=True)
     data_ver = models.DataVersionField()
 
+    class Meta:
+        table = "book"
 
 class IntFieldsModel(models.Model):
     id = models.IntField(pk=True)

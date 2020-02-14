@@ -19,7 +19,7 @@ from .common import (
         PikaTableFilters,
         FunctionResolve)
 from pypika import Parameter
-from pypika import Table, Query, PostgreSQLQuery
+from pypika import Table, PostgreSQLQuery
 from pypika import functions as fn
 from pypika.terms import EmptyCriterion
 import operator
@@ -95,17 +95,17 @@ class PostgresMapper(BaseDatabaseMapper):
         self.filters = PikaTableFilters(self.pika_table, self.meta.filters)
 
         self.insert_all_sql = str(
-            Query.into(self.pika_table)
+            PostgreSQLQuery.into(self.pika_table)
             .columns(*column_names)
             .insert(*[self.parameter(i) for i in range(len(column_names))]).get_sql()
         )
         self.delete_sql = str(
-            Query.from_(self.pika_table).where(
+            PostgreSQLQuery.from_(self.pika_table).where(
                 self.pika_table[self.meta.db_pk_field] == self.parameter(0)
             ).delete().get_sql()
         )
         self.delete_table_sql = str(
-            Query.from_(self.pika_table).delete().get_sql()
+            PostgreSQLQuery.from_(self.pika_table).delete().get_sql()
         )
         self.drop_table_sql = str(
             f"DROP TABLE IF EXISTS {self.meta.table};"
@@ -137,13 +137,15 @@ class PostgresMapper(BaseDatabaseMapper):
                 fn, value = FunctionResolve.resolve_value(value, self.pika_table)
                 param = fn if fn else self.parameter(param_index)
 
-                sub_criterion = self.filters.get_criterion(key, param)
+                sub_criterion, value = self.filters.get_criterion(key, param, value)
                 criterion = self._join_criterion(criterion, sub_criterion, expr.join_type)
 
                 if value != None:
                     param_index += 1
                     values.append(value)
 
+        if expr._is_negated and not isinstance(criterion, EmptyCriterion):
+                criterion = operator.invert(criterion)
         return criterion, values
 
     def _expressions_to_criterion(self, expressions, param_index, join_type="AND"):

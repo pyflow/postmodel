@@ -4,6 +4,8 @@ from typing import List, Set
 import operator
 from pypika import functions
 from pypika.enums import SqlTypes
+from pypika.terms import Criterion
+from functools import partial
 from copy import deepcopy
 from postmodel.models.functions import Function
 
@@ -127,64 +129,81 @@ class BaseTableSchemaGenerator:
 
         return '\n'.join(schema_sql)
 
+class PostgreInCriterion(Criterion):
+    value_type_map = {
+        int: "bigint",
+        str: "text"
+    }
+    def __init__(self, field_name, param, value_type):
+        self.field_name = field_name
+        self.param = param
+        self.value_type = self.value_type_map[value_type]
+
+    def get_sql(self, **kwargs):
+        return f'"{self.field_name}" = ANY({self.param}::{self.value_type}[])'
+
+class PostgreNotInCriterion(PostgreInCriterion):
+    def get_sql(self, **kwargs):
+        return f'"{self.field_name}" <> ALL({self.param}::{self.value_type}[])'
+
 class FieldFilterFunctions:
 
     @staticmethod
-    def is_in(field, value):
-        return field.isin(value)
+    def is_in(field, param_or_value, value_type):
+        return PostgreInCriterion(field.name, param_or_value, value_type)
 
     @staticmethod
-    def not_in(field, value):
-        return field.notin(value) | field.isnull()
+    def not_in(field, param_or_value, value_type):
+        return PostgreNotInCriterion(field.name, param_or_value, value_type)
 
     @staticmethod
-    def not_equal(field, value):
-        return field.ne(value) | field.isnull()
+    def not_equal(field, param_or_value):
+        return field.ne(param_or_value) | field.isnull()
 
     @staticmethod
-    def is_null(field, value):
-        if value:
+    def is_null(field, param_or_value):
+        if param_or_value:
             return field.isnull()
         return field.notnull()
 
     @staticmethod
-    def not_null(field, value):
-        if value:
+    def not_null(field, param_or_value):
+        if param_or_value:
             return field.notnull()
         return field.isnull()
 
     @staticmethod
-    def contains(field, value):
-        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{value}%")
+    def contains(field, param_or_value):
+        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{param_or_value}%")
 
     @staticmethod
-    def starts_with(field, value):
-        return functions.Cast(field, SqlTypes.VARCHAR).like(f"{value}%")
+    def starts_with(field, param_or_value):
+        return functions.Cast(field, SqlTypes.VARCHAR).like(f"{param_or_value}%")
 
     @staticmethod
-    def ends_with(field, value):
-        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{value}")
+    def ends_with(field, param_or_value):
+        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{param_or_value}")
 
     @staticmethod
-    def insensitive_exact(field, value):
-        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).eq(functions.Upper(f"{value}"))
+    def insensitive_exact(field, param_or_value):
+        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).eq(functions.Upper(f"{param_or_value}"))
 
     @staticmethod
-    def insensitive_contains(field, value):
+    def insensitive_contains(field, param_or_value):
         return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
-            functions.Upper(f"%{value}%")
+            functions.Upper(f"%{param_or_value}%")
         )
 
     @staticmethod
-    def insensitive_starts_with(field, value):
+    def insensitive_starts_with(field, param_or_value):
         return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
-            functions.Upper(f"{value}%")
+            functions.Upper(f"{param_or_value}%")
         )
 
     @staticmethod
-    def insensitive_ends_with(field, value):
+    def insensitive_ends_with(field, param_or_value):
         return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
-            functions.Upper(f"%{value}")
+            functions.Upper(f"%{param_or_value}")
         )
 
 FFF = FieldFilterFunctions
@@ -223,15 +242,20 @@ class PikaTableFilters:
                     pika_field = self.pika_fields[db_field]
                 operator = value['operator']
                 operator_func = self.filter_funcs_map[operator]
+                if operator in ['is_in', 'not_in']:
+                    operator_func = partial(operator_func, value_type=value['field_type'])
                 new_value = deepcopy(value)
                 new_value['operator'] = operator_func
                 new_value['pika_field'] = pika_field
                 self.filters[key] = new_value
 
-    def get_criterion(self, key, value):
+    def get_criterion(self, key, param, value):
         ff = self.filters.get(key)
         operator_func = ff['operator']
-        return operator_func(ff['pika_field'], value)
+        new_value = value
+        if 'value_encoder' in ff:
+            new_value = ff['value_encoder'](value)
+        return operator_func(ff['pika_field'], param), new_value
 
 
 class FunctionResolve:

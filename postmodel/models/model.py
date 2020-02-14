@@ -75,7 +75,8 @@ class MetaInfo:
 
     def finalize_filters(self):
         for field_name, db_field in self.fields_db_projection.items():
-            filters = FilterBuilder.get_filters_for_field(field_name, db_field)
+            filters = FilterBuilder.get_filters_for_field(self.fields_map[field_name],
+                    field_name, db_field)
             self.filters[field_name] = filters
 
     def get_filter(self, key: str) -> dict: # pragma: nocoverage

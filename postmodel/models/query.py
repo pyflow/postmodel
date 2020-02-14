@@ -5,6 +5,7 @@ from enum import Enum
 
 from postmodel.exceptions import FieldError, OperationalError
 from .fields import Field
+from functools import partial
 
 
 class Order(Enum):
@@ -12,6 +13,11 @@ class Order(Enum):
     desc = "DESC"
 
 class FilterBuilder:
+    @staticmethod
+    def list_encoder(values, field):
+        """Encodes an iterable of a given field into a database-compatible format."""
+        return [field.to_db_value(element) for element in values]
+
     @staticmethod
     def bool_encoder(value, *args):
         return bool(value)
@@ -21,99 +27,118 @@ class FilterBuilder:
         return str(value)
 
     @staticmethod
-    def get_filters_for_field(field_name: str, db_field: str) -> Dict[str, dict]:
+    def get_filters_for_field(field, field_name: str, db_field: str) -> Dict[str, dict]:
         actual_field_name = field_name
         return {
             field_name: {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": 'equal',
             },
             f"{field_name}__not": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
-                "operator": 'not_equal',
+                "operator": 'not_equal'
             },
             f"{field_name}__in": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
-                "operator": 'is_in'
+                "operator": 'is_in',
+                "value_encoder": partial(FilterBuilder.list_encoder, field=field)
             },
             f"{field_name}__not_in": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
-                "operator": 'not_in'
+                "operator": 'not_in',
+                "value_encoder": partial(FilterBuilder.list_encoder, field=field)
             },
             f"{field_name}__isnull": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": 'is_null',
                 "value_encoder": FilterBuilder.bool_encoder,
             },
             f"{field_name}__not_isnull": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": 'not_null',
                 "value_encoder": FilterBuilder.bool_encoder,
             },
             f"{field_name}__gte": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "greater_equal",
             },
             f"{field_name}__lte": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "less_equal",
             },
             f"{field_name}__gt": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "greater_than",
             },
             f"{field_name}__lt": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "less_than",
             },
             f"{field_name}__contains": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "contains",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__startswith": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "starts_with",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__endswith": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "ends_with",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__iexact": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "insensitive_exact",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__icontains": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "insensitive_contains",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__istartswith": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "insensitive_starts_with",
                 "value_encoder": FilterBuilder.string_encoder,
             },
             f"{field_name}__iendswith": {
                 "field": actual_field_name,
+                "field_type": field.type,
                 "db_field": db_field,
                 "operator": "insensitive_ends_with",
                 "value_encoder": FilterBuilder.string_encoder,
