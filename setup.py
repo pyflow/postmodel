@@ -21,10 +21,17 @@ def version() -> str:
         raise RuntimeError("Unable to find version string")
     return mob.group(1)
 
+requirements_str = '''pypika>=0.35.21
+ciso8601>=2.1.2
+basepy>=0.1.1
+asyncpg>=0.20.1
+contextvars>=2.4;python_version<"3.7"
+'''
 
 def requirements() -> list:
-    requirements_file = os.path.join(here, "requirements.txt")
-    return open(requirements_file, "rt").read().splitlines()
+    l = requirements_str.splitlines()
+    print(l)
+    return l
 
 
 def long_description() -> str:
@@ -52,11 +59,11 @@ setup(
     url="https://github.com/postmodel/postmodel",
     description="Easy async ORM for python, built with relations in mind",
     long_description=long_description(),
-    long_description_content_type="text/x-rst",
+    long_description_content_type="text/markdown",
     project_urls={"Documentation": "https://postmodel.readthedocs.io/"},
     classifiers=[
-        "License :: OSI Approved :: MIT Software License",
-        "Development Status :: 3 - Alpha",
+        "License :: OSI Approved :: MIT License",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
@@ -73,7 +80,7 @@ setup(
         "sql postgres psql asyncpg "
         "relational database rdbms "
         "orm object mapper "
-        "async asyncio aio"
+        "asyncio"
     ),
     # Dependent packages (distributions)
     install_requires=requirements(),
