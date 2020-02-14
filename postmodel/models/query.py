@@ -343,6 +343,22 @@ class QuerySet:
         queryset._return_single = True
         return queryset  # type: ignore
 
+    async def explain(self) -> Any:
+        """Fetch and return information about the query execution plan.
+
+        This is done by executing an ``EXPLAIN`` query whose exact prefix depends
+        on the database backend, as documented below.
+
+        - PostgreSQL: ``EXPLAIN (FORMAT JSON, VERBOSE) ...``
+
+        .. note::
+            This is only meant to be used in an interactive environment for debugging
+            and query optimization.
+            **The output format may (and will) vary greatly depending on the database backend.**
+        """
+        mapper = self.model_class.get_mapper(self.db_name)
+        return await mapper.explain(self)
+
     def using_db(self, db_name):
         """
         Executes query in provided db client.

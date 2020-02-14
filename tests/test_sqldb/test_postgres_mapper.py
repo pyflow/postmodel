@@ -1,7 +1,11 @@
 
 from postmodel import Postmodel, models
 import pytest
-from postmodel.exceptions import IntegrityError
+from postmodel.exceptions import (
+    IntegrityError,
+    OperationalError,
+    DoesNotExist,
+    MultipleObjectsReturned)
 import asyncio
 from postmodel.models import QueryExpression, Q
 from postmodel.models import functions as fn
@@ -51,11 +55,18 @@ async def test_mapper_1(db_url):
     foo = await Foo.create(foo_id=3, name="hello3", tag="low", memo="3 is magic number")
     foo.tag = "low3"
     await foo.save()
+    await foo.save()
+    with pytest.raises(DoesNotExist):
+        foo = await Foo.get(foo_id = 1121)
+
     foo = await Foo.get(foo_id=3)
     assert foo.tag == 'low3'
     count = await Foo.all().count()
     assert count == 1
     print('count ', count)
+    explain_ret = await Foo.all().explain()
+    print('explain ret:', explain_ret)
+    assert len(explain_ret)  > 0
     ret = await foo.delete()
     print("delete ret>>", ret)
     assert ret == 1
@@ -76,10 +87,15 @@ async def test_mapper_1(db_url):
     count = await Foo.all().count()
     assert count == 11
 
+    with pytest.raises(MultipleObjectsReturned):
+        foo = await Foo.get(foo_id__gt = 0)
+
     await Foo.filter(name="bulk_create").update(tag="bulk_high")
 
     for foo in await Foo.filter(name="bulk_create"):
         assert foo.tag == 'bulk_high'
+    
+    await mapper.delete_table()
     await Postmodel.close()
 
 @pytest.mark.asyncio
@@ -144,6 +160,12 @@ async def test_mapper_get_criterion(db_url):
     sql = criterion.get_sql()
     assert sql == '"foo_id">$2 OR "name"=$3'
     assert values == [1, "bulk"]
+    
+    with pytest.raises(OperationalError):
+        q = Q(foo_id__gt = 10)
+        q.join_type = "XOR"
+        criterion, values = mapper._expressions_to_criterion([q], 1)
+
     await Postmodel.close()
 
 @pytest.mark.asyncio

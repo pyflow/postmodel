@@ -54,7 +54,7 @@ class PooledTransactionContext:
         self.transaction = None
 
     async def __aenter__(self):
-        if self.connection is not None or self.done:
+        if self.connection is not None or self.done: # pragma: nocoverage
             raise Exception('a connection is already acquired')
         self.connection = await self.pool._acquire(self.timeout)
         self.transaction = self.connection.transaction()
@@ -67,7 +67,7 @@ class PooledTransactionContext:
         if exc_type:
             try:
                 await self.transaction.rollback()
-            except:
+            except: # pragma: nocoverage
                 pass
         else:
             await self.transaction.commit()
@@ -120,7 +120,7 @@ class PostgresMapper(BaseDatabaseMapper):
             return left & right
         elif join_type.upper() == "OR":
             return left | right
-        raise Exception('join_type only support ("AND", "OR")')
+        raise OperationalError('join_type only support ("AND", "OR")') # pragma: nocoverage
 
     def _expression_to_criterion(self, expr, param_index):
         values = []
@@ -140,7 +140,7 @@ class PostgresMapper(BaseDatabaseMapper):
                 sub_criterion = self.filters.get_criterion(key, param)
                 criterion = self._join_criterion(criterion, sub_criterion, expr.join_type)
 
-                if value:
+                if value != None:
                     param_index += 1
                     values.append(value)
 
@@ -151,9 +151,10 @@ class PostgresMapper(BaseDatabaseMapper):
         return self._expression_to_criterion(expr, param_index)
 
 
-    async def explain(self, query) -> Any:
-        sql = " ".join((self.EXPLAIN_PREFIX, query.get_sql()))
-        return (await self.db.execute_query(sql))[1]
+    async def explain(self, queryset) -> Any:
+        sql, values = self._get_query_sql(queryset)
+        sql = " ".join((self.EXPLAIN_PREFIX, sql))
+        return (await self.db.execute_query(sql, values))[1]
 
     async def create_table(self):
         sg = BaseTableSchemaGenerator(self.model_class._meta)
@@ -330,6 +331,7 @@ class PostgresMapper(BaseDatabaseMapper):
     async def query(self, queryset):
         sql, values= self._get_query_sql(queryset)
         _, rows = await self.db.execute_query(sql, values)
+        print("query>>>>", rows)
         if queryset._expect_single:
             if len(rows) > 1:
                 raise MultipleObjectsReturned("Multiple objects returned, expected exactly one")
