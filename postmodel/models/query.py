@@ -14,16 +14,28 @@ class Order(Enum):
 
 class FilterBuilder:
     @staticmethod
-    def list_encoder(values, field):
+    def unary_encoder(value, **kwargs):
+        return None
+
+    @staticmethod
+    def list_encoder(values, field, **kwargs):
         """Encodes an iterable of a given field into a database-compatible format."""
         return [field.to_db_value(element) for element in values]
 
     @staticmethod
-    def bool_encoder(value, *args):
-        return bool(value)
+    def string_contains_encoder(value, **kwargs):
+        return f'%{value}%'
 
     @staticmethod
-    def string_encoder(value, *args):
+    def string_starts_encoder(value, **kwargs):
+        return f'{value}%'
+
+    @staticmethod
+    def string_ends_encoder(value, **kwargs):
+        return f'%{value}'
+
+    @staticmethod
+    def string_encoder(value, **kwargs):
         return str(value)
 
     @staticmethod
@@ -61,14 +73,14 @@ class FilterBuilder:
                 "field_type": field.type,
                 "db_field": db_field,
                 "operator": 'is_null',
-                "value_encoder": FilterBuilder.bool_encoder,
+                "value_encoder": FilterBuilder.unary_encoder,
             },
             f"{field_name}__not_isnull": {
                 "field": actual_field_name,
                 "field_type": field.type,
                 "db_field": db_field,
                 "operator": 'not_null',
-                "value_encoder": FilterBuilder.bool_encoder,
+                "value_encoder": FilterBuilder.unary_encoder,
             },
             f"{field_name}__gte": {
                 "field": actual_field_name,
@@ -99,21 +111,21 @@ class FilterBuilder:
                 "field_type": field.type,
                 "db_field": db_field,
                 "operator": "contains",
-                "value_encoder": FilterBuilder.string_encoder,
+                "value_encoder": FilterBuilder.string_contains_encoder,
             },
             f"{field_name}__startswith": {
                 "field": actual_field_name,
                 "field_type": field.type,
                 "db_field": db_field,
                 "operator": "starts_with",
-                "value_encoder": FilterBuilder.string_encoder,
+                "value_encoder": FilterBuilder.string_starts_encoder,
             },
             f"{field_name}__endswith": {
                 "field": actual_field_name,
                 "field_type": field.type,
                 "db_field": db_field,
                 "operator": "ends_with",
-                "value_encoder": FilterBuilder.string_encoder,
+                "value_encoder": FilterBuilder.string_ends_encoder,
             },
             f"{field_name}__iexact": {
                 "field": actual_field_name,
@@ -127,21 +139,21 @@ class FilterBuilder:
                 "field_type": field.type,
                 "db_field": db_field,
                 "operator": "insensitive_contains",
-                "value_encoder": FilterBuilder.string_encoder,
+                "value_encoder": FilterBuilder.string_contains_encoder,
             },
             f"{field_name}__istartswith": {
                 "field": actual_field_name,
                 "field_type": field.type,
                 "db_field": db_field,
                 "operator": "insensitive_starts_with",
-                "value_encoder": FilterBuilder.string_encoder,
+                "value_encoder": FilterBuilder.string_starts_encoder,
             },
             f"{field_name}__iendswith": {
                 "field": actual_field_name,
                 "field_type": field.type,
                 "db_field": db_field,
                 "operator": "insensitive_ends_with",
-                "value_encoder": FilterBuilder.string_encoder,
+                "value_encoder": FilterBuilder.string_ends_encoder,
             },
         }
 

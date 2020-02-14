@@ -149,77 +149,105 @@ class PostgreNotInCriterion(PostgreInCriterion):
 class FieldFilterFunctions:
 
     @staticmethod
-    def is_in(field, param_or_value, value_type):
-        return PostgreInCriterion(field.name, param_or_value, value_type)
+    def equal(field, param=None, value=None, **kwargs):
+        param_or_value = param or value
+        return operator.eq(field, param_or_value)
 
     @staticmethod
-    def not_in(field, param_or_value, value_type):
-        return PostgreNotInCriterion(field.name, param_or_value, value_type)
-
-    @staticmethod
-    def not_equal(field, param_or_value):
+    def not_equal(field, param=None, value=None, **kwargs):
+        param_or_value = param or value
         return field.ne(param_or_value) | field.isnull()
 
     @staticmethod
-    def is_null(field, param_or_value):
-        if param_or_value:
+    def greater_equal(field, param=None, value=None, **kwargs):
+        param_or_value = param or value
+        return operator.ge(field, param_or_value)
+
+    @staticmethod
+    def greater_than(field, param=None, value=None, **kwargs):
+        param_or_value = param or value
+        return operator.gt(field, param_or_value)
+
+    @staticmethod
+    def less_equal(field, param=None, value=None, **kwargs):
+        param_or_value = param or value
+        return operator.le(field, param_or_value)
+
+    @staticmethod
+    def less_than(field, param=None, value=None, **kwargs):
+        param_or_value = param or value
+        return operator.lt(field, param_or_value)
+
+    @staticmethod
+    def is_in(field, param=None, value=None, value_type=str, **kwargs):
+        param_or_value = param or value
+        return PostgreInCriterion(field.name, param_or_value, value_type)
+
+    @staticmethod
+    def not_in(field, param=None, value=None, value_type=str, **kwargs):
+        param_or_value = param or value
+        return PostgreNotInCriterion(field.name, param_or_value, value_type)
+
+    @staticmethod
+    def is_null(field, param=None, value=None, **kwargs):
+        if value:
             return field.isnull()
         return field.notnull()
 
     @staticmethod
-    def not_null(field, param_or_value):
-        if param_or_value:
+    def not_null(field, param=None, value=None, **kwargs):
+        if value:
             return field.notnull()
         return field.isnull()
 
     @staticmethod
-    def contains(field, param_or_value):
-        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{param_or_value}%")
+    def contains(field, param=None, value=None, **kwargs):
+        return functions.Cast(field, SqlTypes.VARCHAR).like(param)
 
     @staticmethod
-    def starts_with(field, param_or_value):
-        return functions.Cast(field, SqlTypes.VARCHAR).like(f"{param_or_value}%")
+    def starts_with(field, param=None, value=None, **kwargs):
+        return functions.Cast(field, SqlTypes.VARCHAR).like(param)
 
     @staticmethod
-    def ends_with(field, param_or_value):
-        return functions.Cast(field, SqlTypes.VARCHAR).like(f"%{param_or_value}")
+    def ends_with(field, param=None, value=None, **kwargs):
+        return functions.Cast(field, SqlTypes.VARCHAR).like(param)
 
     @staticmethod
-    def insensitive_exact(field, param_or_value):
-        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).eq(functions.Upper(f"{param_or_value}"))
+    def insensitive_exact(field, param=None, value=None, **kwargs):
+        return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).eq(functions.Upper(param))
 
     @staticmethod
-    def insensitive_contains(field, param_or_value):
+    def insensitive_contains(field, param=None, value=None, **kwargs):
         return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
-            functions.Upper(f"%{param_or_value}%")
+            functions.Upper(param)
         )
 
     @staticmethod
-    def insensitive_starts_with(field, param_or_value):
+    def insensitive_starts_with(field, param=None, value=None, **kwargs):
         return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
-            functions.Upper(f"{param_or_value}%")
+            functions.Upper(param)
         )
 
     @staticmethod
-    def insensitive_ends_with(field, param_or_value):
+    def insensitive_ends_with(field, param=None, value=None, **kwargs):
         return functions.Upper(functions.Cast(field, SqlTypes.VARCHAR)).like(
-            functions.Upper(f"%{param_or_value}")
+            functions.Upper(param)
         )
 
 FFF = FieldFilterFunctions
 
 class PikaTableFilters:
     filter_funcs_map = {
-        'equal': operator.eq,
+        'equal': FFF.equal,
         'not_equal': FFF.not_equal,
         'is_in': FFF.is_in,
         'not_in': FFF.not_in,
         'is_null': FFF.is_null,
         'not_null': FFF.not_null,
-        'greater_equal': operator.ge,
-        'less_equal': operator.le,
-        'greater_than': operator.gt,
-        'less_than': operator.lt,
+        'greater_equal': FFF.greater_equal,
+        'less_equal': FFF.less_equal,
+        'greater_than': FFF.greater_than,
+        'less_than': FFF.less_than,
         'contains': FFF.contains,
         'starts_with': FFF.starts_with,
         'ends_with': FFF.ends_with,
@@ -255,7 +283,7 @@ class PikaTableFilters:
         new_value = value
         if 'value_encoder' in ff:
             new_value = ff['value_encoder'](value)
-        return operator_func(ff['pika_field'], param), new_value
+        return operator_func(ff['pika_field'], param=param, value=value), new_value
 
 
 class FunctionResolve:

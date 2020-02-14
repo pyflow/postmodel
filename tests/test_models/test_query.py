@@ -81,3 +81,7 @@ def test_queryset_1():
     qs_one_or_none = qs.get_or_none()
     assert qs_one_or_none._limit == 1
     assert qs_one_or_none._return_single == 1
+
+    assert qs.db_name == "default"
+    qs.using_db("test_db_queryset")
+    assert qs.db_name == "test_db_queryset"
