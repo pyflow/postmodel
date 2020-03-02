@@ -6,8 +6,7 @@ import importlib
 import inspect
 import warnings
 from typing import Any, Coroutine, Dict, List, Optional, Tuple, Type, Union, cast
-from basepy.log import logger
-from basepy.log import logger
+from basepy.asynclog import logger
 
 from urllib.parse import urlparse, parse_qs
 import uuid
@@ -57,13 +56,13 @@ class Postmodel:
             db_type, config, parameters = cls._parse_db_url(value)
             cls._databases[key] = await cls._init_database(key, db_type, config, parameters)
             current_transaction_map[key] = ContextVar("TransactedConnection", default=None)
-        
+
         for module in modules:
             models = await cls._load_models(module)
             cls._models.update(models)
 
         cls._inited = True
-    
+
 
     @classmethod
     def _parse_db_url(cls, db_url):
@@ -82,7 +81,7 @@ class Postmodel:
                 config['port'] = int(url.port)
         except ValueError:
             raise ConfigurationError("Port is not an integer")
-        
+
         config['db_path'] = url.path.lstrip('/')
 
         params: dict = {}
@@ -101,7 +100,7 @@ class Postmodel:
             database_class = getattr(db_module, db_class_name)  # type: ignore
         except AttributeError:
             raise ConfigurationError(f'Backend for database "{db_type}" does not implemented')
-        
+
         db = database_class(db_name, config, parameters)
         await db.init()
         return db
@@ -119,7 +118,7 @@ class Postmodel:
             possible_models = [(model_name, getattr(module, model_name)) for model_name in model_names]
         else:
             possible_models = [(attr_name, getattr(module, attr_name)) for attr_name in dir(module)]
-        
+
         for name, value in possible_models:
             if inspect.isclass(value) and issubclass(value, Model) and not value._meta.abstract:
                 models['{}.{}'.format(module_name, name)] = value
@@ -128,7 +127,7 @@ class Postmodel:
             await logger.warning(f'Module "{module_name}" has no models')
 
         return models
-    
+
     @classmethod
     def get_mapper(cls, model_class, db_name='default'):
         key = (model_class, db_name)
@@ -157,7 +156,7 @@ class Postmodel:
         for name, model in cls._models.items():
             mapper = model.get_mapper()
             await mapper.create_table()
-    
+
     @classmethod
     async def _reset(cls):
         await cls.close_databases()
@@ -165,13 +164,13 @@ class Postmodel:
         cls._mapper_cache = {}
         cls._models = {}
         cls._inited = False
-    
+
     @classmethod
     async def close_databases(cls) -> None:
         for db in cls._databases.values():
             await db.close()
         cls._databases = {}
-    
+
     @classmethod
     async def close(cls):
         await cls._reset()

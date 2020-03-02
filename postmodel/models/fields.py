@@ -34,7 +34,7 @@ class Field:
         "reference",
         "description",
     )
-    
+
     has_db_field = True
     indexable: bool = True
 

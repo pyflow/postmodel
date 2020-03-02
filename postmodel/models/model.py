@@ -136,7 +136,7 @@ class ModelMeta(type):
                         raise Exception('duplicated pk not allowed.')
                     pk_attr = key
                 fields_db_projection[key] = value.db_field or key
-        
+
         for key in fields_map.keys():
             attrs.pop(key)
 
@@ -207,12 +207,12 @@ class Model(metaclass=ModelMeta):
                 setattr(self, key, field.default())
             else:
                 setattr(self, key, field.default)
-        
+
         self._snapshot_data = {}
 
         if self._saved_in_db:
             self.make_snapshot()
-    
+
     @classmethod
     def _init_from_db(cls, **kwargs):
         instance = cls(load_from_db=True, **kwargs)
@@ -231,7 +231,7 @@ class Model(metaclass=ModelMeta):
             now_data[key] = getattr(self, key)
         diff = self.dict_diff(now_data, self._snapshot_data)
         return diff.keys()
-    
+
     def dict_diff(self, first, second):
         """ Return a dict of keys that differ with another config object.  If a value is
             not found in one fo the configs, it will be represented by None.
@@ -270,7 +270,7 @@ class Model(metaclass=ModelMeta):
     @property
     def pk(self):
         return getattr(self, self._meta.pk_attr)
-    
+
     @pk.setter
     def pk(self, value):
         setattr(self, self._meta.pk_attr, value)
@@ -333,7 +333,7 @@ class Model(metaclass=ModelMeta):
         return QuerySet(cls).filter(*args, **kwargs).first()
 
 
-    async def save(self, using_db=None, update_fields = None, force=False) -> int:
+    async def save(self, update_fields = None, force=False) -> int:
         changed = self.changed()
         if len(changed) == 0:
             return
@@ -347,7 +347,7 @@ class Model(metaclass=ModelMeta):
 
         fileds = list(set(update_fields or ()) | set(self.changed()))
 
-        mapper = self.get_mapper(using_db=using_db)
+        mapper = self.get_mapper()
         if self._saved_in_db:
             ret = await mapper.update(self, update_fields=fileds, condition_fields=condition_fields)
             if ret == 0:
@@ -360,20 +360,19 @@ class Model(metaclass=ModelMeta):
 
         self.make_snapshot()
 
-    async def delete(self, using_db=None) -> int:
+    async def delete(self) -> int:
         """
         Deletes the current model object.
 
         :raises OperationalError: If object has never been persisted.
         """
-        db = using_db or self._meta.db_name
         if not self._saved_in_db:
             raise OperationalError("Can't delete unpersisted record")
-        mapper = self.get_mapper(using_db=db)
+        mapper = self.get_mapper()
         return await mapper.delete(self)
 
     @classmethod
-    async def get_or_create(cls, using_db = None, defaults = None, **kwargs):
+    async def get_or_create(cls, defaults = None, **kwargs):
         """
         Fetches the object if exists (filtering on the provided parameters),
         else creates an instance with any unspecified parameters as default values.
@@ -383,7 +382,7 @@ class Model(metaclass=ModelMeta):
         instance = await cls.filter(**kwargs).first()
         if instance:
             return instance, False
-        return await cls.create(**defaults, **kwargs, using_db=using_db), True
+        return await cls.create(**defaults, **kwargs), True
 
 
     @classmethod
@@ -404,15 +403,14 @@ class Model(metaclass=ModelMeta):
         """
         instance = cls(**kwargs)
         instance._auto_values()
-        db = kwargs.get("using_db") or cls._meta.db_name
-        mapper = cls.get_mapper(using_db=db)
+        mapper = cls.get_mapper()
         await mapper.insert(instance)
         instance._saved_in_db = True
         instance.make_snapshot()
         return instance
 
     @classmethod
-    async def bulk_create(cls, objects, using_db = None) -> None:
+    async def bulk_create(cls, objects) -> None:
         """
         Bulk insert operation:
 
@@ -435,7 +433,7 @@ class Model(metaclass=ModelMeta):
 
         :param objects: List of objects to bulk create
         """
-        mapper = cls.get_mapper(using_db=using_db)
+        mapper = cls.get_mapper()
         for obj in objects:
             obj._auto_values()
         await mapper.bulk_insert(objects)  # type: ignore

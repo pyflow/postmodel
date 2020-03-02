@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from sanic import Sanic  # pylint: disable=E0401
 
 from postmodel import Postmodel
-from basepy.log import logger
+from basepy.asynclog import logger
 
 
 def register_postmodel(

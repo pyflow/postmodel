@@ -2,7 +2,7 @@
 from postmodel import Postmodel
 import pytest
 from postmodel import models
-from basepy.log import logger
+from basepy.asynclog import logger
 from postmodel.sqldb.postgres import PostgresEngine
 from postmodel.exceptions import DBConnectionError
 
@@ -39,7 +39,7 @@ async def test_database_1(db_url):
         'UPDATE test_db_report SET content = $1 where report_id = $2',
         [("hello hello world in transaction", 1), ("final hello in transaction", 1)]
         )
-    
+
     ret = await db.execute_query_dict(
         'SELECT * from test_db_report', []
     )

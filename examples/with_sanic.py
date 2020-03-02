@@ -5,7 +5,7 @@ from sanic import Sanic, response
 
 from postmodel import models
 from postmodel.ext.sanic import register_postmodel
-from basepy.log import logger
+from basepy.asynclog import logger
 
 logger.add('stdout')
 

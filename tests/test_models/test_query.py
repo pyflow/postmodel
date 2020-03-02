@@ -74,10 +74,10 @@ def test_queryset_1():
 
     with pytest.raises(TypeError):
         qs.filter(object())
-    
+
     with pytest.raises(TypeError):
         qs.exclude(object())
-    
+
     qs_one_or_none = qs.get_or_none()
     assert qs_one_or_none._limit == 1
     assert qs_one_or_none._return_single == 1
