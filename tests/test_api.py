@@ -19,7 +19,7 @@ async def test_api_1(db_url):
     assert len(Postmodel._databases) == 1
     assert Postmodel._inited == True
     await Postmodel.generate_schemas()
-    
+
     await CharFieldsModel.all().delete()
 
     m = await CharFieldsModel.create(id=1, char="hello", char_null="hi")
@@ -29,7 +29,7 @@ async def test_api_1(db_url):
         CharFieldsModel(id=4, char="hello4", char_null="null4"),
         CharFieldsModel(id=5, char="hello5")
     ])
-    
+
     mlist = await CharFieldsModel.exclude(id = 3)
     assert len(mlist) == 4
 
@@ -91,7 +91,7 @@ async def test_api_queries(db_url):
     assert len(Postmodel._databases) == 1
     assert Postmodel._inited == True
     await Postmodel.generate_schemas()
-    
+
     await CharFieldsModel.bulk_create([
         CharFieldsModel(id=2, char="Hello Moo World"),
         CharFieldsModel(id=3, char="HELLO WWW", char_null="null3"),
@@ -101,24 +101,24 @@ async def test_api_queries(db_url):
     ])
     async for obj in CharFieldsModel.filter(char__contains="or"):
         assert "or" in obj.char
-    
+
     mlist  = await CharFieldsModel.filter(char__icontains="hello")
     assert len(mlist) == 3
     for obj in mlist:
         assert "hello" in obj.char.lower()
-    
+
     async for obj in CharFieldsModel.filter(char__startswith="He"):
         assert obj.char.startswith("He")
-    
+
     async for obj in CharFieldsModel.filter(char__istartswith="He"):
         assert obj.char[0:2].lower() == "he"
-    
+
     async for obj in CharFieldsModel.filter(char__endswith="ks"):
         assert obj.char.endswith("ks")
-    
+
     async for obj in CharFieldsModel.filter(char__iendswith="KS"):
         assert obj.char[-2:].upper() == "KS"
-    
+
     async for obj in CharFieldsModel.filter(char__iexact="Hello Moo World"):
         assert obj.char.upper() == "HELLO MOO WORLD"
 
@@ -139,10 +139,10 @@ async def test_api_queries(db_url):
 
     async for obj in CharFieldsModel.filter(char_null__isnull=True):
         assert obj.char_null == None
-    
+
     async for obj in CharFieldsModel.filter(char_null__isnull=False):
         assert obj.char_null != None
-    
+
     async for obj in CharFieldsModel.filter(char_null__not_isnull=True):
         assert obj.char_null != None
 
@@ -163,12 +163,21 @@ async def test_api_updates(db_url):
     await mapper.delete_table()
 
     await Postmodel.generate_schemas()
-    
+
     await Book.create(id=1, name='learning python', description="learn how to write python program.")
     m = await Book.get(id=1)
     m1 = await Book.get(id=1)
     assert m.data_ver == 1
     assert m1.data_ver == 1
+    data = m.to_dict()
+    for key in ["id", "name", "description", "created", "updated", "data_ver"]:
+        assert data[key] == getattr(m, key)
+    json_data = m.to_json()
+    for key in ["id", "name", "description", "data_ver"]:
+        assert json_data[key] == getattr(m, key)
+    assert type(json_data["created"]) == str
+    assert json_data["created"] == m.created.isoformat()
+    assert json_data["updated"] == m.updated.isoformat()
     m.description = "modified description"
     await m.save()
     m = await Book.get(id=1)
