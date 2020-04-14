@@ -172,7 +172,7 @@ async def test_api_updates(db_url):
     data = m.to_dict()
     for key in ["id", "name", "description", "created", "updated", "data_ver"]:
         assert data[key] == getattr(m, key)
-    json_data = m.to_json()
+    json_data = m.to_jsondict()
     for key in ["id", "name", "description", "data_ver"]:
         assert json_data[key] == getattr(m, key)
     assert type(json_data["created"]) == str

@@ -8,6 +8,7 @@ from .fields import Field, DataVersionField
 import re
 import datetime
 import uuid
+import json
 
 _underscorer1 = re.compile(r'(.)([A-Z][a-z]+)')
 _underscorer2 = re.compile('([a-z0-9])([A-Z])')
@@ -231,7 +232,7 @@ class Model(metaclass=ModelMeta):
             data[key] = deepcopy(getattr(self, key))
         return data
 
-    def to_json(self):
+    def to_jsondict(self):
         json_data = dict()
         for key in self._meta.fields_db_projection.keys():
             value = deepcopy(getattr(self, key))
@@ -242,6 +243,9 @@ class Model(metaclass=ModelMeta):
             else:
                 json_data[key] = value
         return json_data
+
+    def to_json(self):
+        return json.dumps(self.to_jsondict())
 
     def changed(self):
         now_data = dict()
