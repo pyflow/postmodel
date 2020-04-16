@@ -56,7 +56,7 @@ setup(
     include_package_data=True,
     package_data={},
     # Details
-    url="https://github.com/postmodel/postmodel",
+    url="https://github.com/zeaphoo/postmodel",
     description="Easy async ORM for python, built with relations in mind",
     long_description=long_description(),
     long_description_content_type="text/markdown",
