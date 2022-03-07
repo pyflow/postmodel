@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Iterable, List, Optional, Sequence, Tuple, Type, Union
 from functools import wraps
 from .base import BaseDatabaseEngine, BaseDatabaseMapper
 from .base import (TransactedConnections,
@@ -33,7 +33,7 @@ def translate_exceptions(func):
             return await func(self, *args)
         except asyncpg.SyntaxOrAccessError as exc: # pragma: nocoverage
             raise OperationalError(exc)
-        except asyncpg.IntegrityConstraintViolationError as exc: 
+        except asyncpg.IntegrityConstraintViolationError as exc:
             raise IntegrityError(exc)
         except asyncpg.InvalidTransactionStateError as exc:  # pragma: nocoverage
             raise TransactionManagementError(exc)
@@ -99,9 +99,16 @@ class PostgresMapper(BaseDatabaseMapper):
             .columns(*column_names)
             .insert(*[self.parameter(i) for i in range(len(column_names))]).get_sql()
         )
+        primary_key_params = []
+        db_pk_field = self.meta.db_pk_field
+        if isinstance(db_pk_field, str):
+            primary_key_params.append(self.pika_table[db_pk_field] == self.parameter(0))
+        elif isinstance(db_pk_field, (tuple, Iterable)):
+            for idx, pk_field in enumerate(db_pk_field):
+                primary_key_params.append(self.pika_table[pk_field] == self.parameter(idx))
         self.delete_sql = str(
             PostgreSQLQuery.from_(self.pika_table).where(
-                self.pika_table[self.meta.db_pk_field] == self.parameter(0)
+                *primary_key_params
             ).delete().get_sql()
         )
         self.delete_table_sql = str(
@@ -161,7 +168,7 @@ class PostgresMapper(BaseDatabaseMapper):
     async def create_table(self):
         sg = BaseTableSchemaGenerator(self.model_class._meta)
         await self.db.execute_script(sg.get_create_schema_sql())
-    
+
     async def clear_table(self):
         await self.db.execute_script(self.delete_table_sql)
 
@@ -197,10 +204,11 @@ class PostgresMapper(BaseDatabaseMapper):
         values = []
         for field_name in update_fields or self.meta.fields_db_projection.keys():
             field_object = self.meta.fields_map[field_name]
-            if not field_object.pk:
-                values.append(field_object.to_db_value(getattr(instance, field_name)))
+            if field_object.pk or self.meta.in_primarykey(field_name):
+                continue
+            values.append(field_object.to_db_value(getattr(instance, field_name)))
 
-        values.append(self.meta.pk.to_db_value(instance.pk))
+        values.extend(self._get_primary_key_values(instance))
         for _, v in condition_fields:
             values.append(v)
 
@@ -222,13 +230,22 @@ class PostgresMapper(BaseDatabaseMapper):
         for field_name in update_fields or self.meta.fields_db_projection.keys():
             db_field = self.meta.fields_db_projection[field_name]
             field_object = self.meta.fields_map[field_name]
-            if not field_object.pk:
-                query = query.set(table[db_field], self.parameter(count))
-                values.append(field_object.to_db_value(getattr(instance, field_name)))
-                count += 1
+            if field_object.pk or self.meta.in_primarykey(field_name):
+                continue
+            query = query.set(table[db_field], self.parameter(count))
+            values.append(field_object.to_db_value(getattr(instance, field_name)))
+            count += 1
 
-        query = query.where(table[self.meta.db_pk_field] == self.parameter(count))
-        values.append(self.meta.pk.to_db_value(instance.pk))
+        db_pk_field = self.meta.db_pk_field
+        primary_query_params = []
+        if isinstance(db_pk_field, str):
+            primary_query_params.append(table[db_pk_field] == self.parameter(count))
+        elif isinstance(db_pk_field, (tuple, Iterable)):
+            for idx, pk_field in enumerate(db_pk_field):
+                primary_query_params.append(table[pk_field] == self.parameter(count+idx))
+
+        query = query.where(*primary_query_params)
+        values.extend(self._get_primary_key_values(instance))
         count += 1
         for k, v in condition_fields:
             query = query.where(table[k] == self.parameter(count))
@@ -244,10 +261,21 @@ class PostgresMapper(BaseDatabaseMapper):
         return ret[0]
 
     async def delete(self, model_instance):
+
         ret = await self.db.execute_query(
-            self.delete_sql, [self.meta.pk.to_db_value(model_instance.pk)]
+            self.delete_sql, self._get_primary_key_values(model_instance)
         )
         return ret[0]
+
+    def _get_primary_key_values(self, model_instance):
+        pk_values = []
+        pk_field = self.meta.pk
+        if isinstance(pk_field, (tuple, Iterable)):
+            for field, value in zip(pk_field, model_instance.pk):
+                pk_values.append(field.to_db_value(value))
+        else:
+            pk_values.append(pk_field.to_db_value(model_instance.pk))
+        return pk_values
 
     def _get_query_update_sql(self, updatequery):
         values = []
@@ -374,7 +402,7 @@ class PostgresEngine(BaseDatabaseEngine):
         'min_size': 10,
         'max_size': 30,
     }
-     
+
     def __init__(self, name,  config, parameters={}):
         super(PostgresEngine, self).__init__(name, config=config, parameters=parameters)
         self.user = self.config['username']
@@ -382,7 +410,7 @@ class PostgresEngine(BaseDatabaseEngine):
         self.database = self.config['db_path']
         self.host = self.config['hostname']
         self.port = int(self.config['port'])
-        
+
         self._conn_params = {
             "host": self.host,
             "port": self.port,
@@ -392,28 +420,28 @@ class PostgresEngine(BaseDatabaseEngine):
             }
         self._pool = None
         self._db_url = f'postgresql://{self.user}:{self.password}@{self.host}:{self.port}/'
-    
+
     async def init(self, create_db=True):
         if not self._pool:
             await self._create_pool(create_db=create_db)
 
     async def _create_pool(self, create_db=True):
-        if self._pool:	
-            return	
-        try:	
-            self._pool = await asyncpg.create_pool(None, password=self.password, **self._conn_params)	
+        if self._pool:
+            return
+        try:
+            self._pool = await asyncpg.create_pool(None, password=self.password, **self._conn_params)
         except asyncpg.InvalidCatalogNameError as ex:
             if create_db:
-                await self.db_create()	
+                await self.db_create()
                 self._pool = await asyncpg.create_pool(None, password=self.password, **self._conn_params)
             else:
                 raise DBConnectionError(f"Can't establish connection to database {self.database}")
         except: # pragma: nocoverage
             raise DBConnectionError(f"Can't establish connection to database {self.database}")
-    
+
     async def close(self) -> None:
         await self._close()
-    
+
     async def _close(self) -> None:
         if self._pool:  # pragma: nobranch
             try:
@@ -438,19 +466,19 @@ class PostgresEngine(BaseDatabaseEngine):
         except Exception as e:  # pragma: nocoverage
             raise OperationalError(f"drop database {self.database}, error: {str(e)}")
         await conn.close()
-    
+
     def in_transaction(self):
         transacted_conn =  self._current_transacted_conn()
         if transacted_conn:
             raise Exception('nested in_transaction not allowed.')
         else:
             return PooledTransactionContext(self.name, self._pool, timeout=None)
-    
+
     def _current_transacted_conn(self):
         try:
             return TransactedConnections.get(self.name)
         except: # pragma: nocoverage
-            return None 
+            return None
 
     def acquire_connection(self, timeout=None):
         if not self._pool:
@@ -460,7 +488,7 @@ class PostgresEngine(BaseDatabaseEngine):
             return TransactedConnectionWrapper(transacted_conn)
         else:
             return self._pool.acquire(timeout=timeout)
-    
+
     @translate_exceptions
     async def execute_insert(self, query: str, values: list) -> int:
         async with self.acquire_connection() as connection:
@@ -470,13 +498,13 @@ class PostgresEngine(BaseDatabaseEngine):
             except Exception:  # pragma: nocoverage
                 rows_affected = 0
             return rows_affected
-    
+
     @translate_exceptions
     async def execute_many(self, query: str, values: list) -> None:
         async with self.acquire_connection() as connection:
             async with connection.transaction():
                 await connection.executemany(query, values)
-    
+
     @translate_exceptions
     async def execute_query(
         self, query: str, values: Optional[list] = None

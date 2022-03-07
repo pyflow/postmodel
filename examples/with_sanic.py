@@ -34,7 +34,7 @@ async def add_user(request):
 
 
 register_postmodel(
-    app, 'postgres://postgres@localhost:54320/test_db', modules=[__name__], generate_schemas=True
+    app, 'postgres://postgres@localhost:5432/test_db', modules=[__name__], generate_schemas=True
 )
 
 

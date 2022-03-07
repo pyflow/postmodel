@@ -1,4 +1,5 @@
 from copy import copy, deepcopy
+from collections.abc import Iterable
 
 from postmodel.exceptions import ConfigurationError, OperationalError, StaleObjectError
 from postmodel.main import Postmodel
@@ -36,6 +37,7 @@ class MetaInfo:
         "unique_together",
         "indexes",
         "pk_attr",
+        "primary_key",
         "table_description",
         "pk",
         "db_pk_field",
@@ -56,9 +58,15 @@ class MetaInfo:
         self.auto_fields = [] # type List[fields.Field]
         self.dataversion_field = "" # type str
         self.pk_attr = getattr(meta, "pk_attr", "")  # type: str
+        primary_key = getattr(meta, "primary_key", "") or self.pk_attr # type: str | List[str] | Tuple[str]
+        if isinstance(primary_key, list):
+            primary_key = tuple(primary_key)
+        if isinstance(primary_key, (tuple, list)) and len(primary_key) == 1:
+            primary_key = primary_key[0]
+        self.primary_key = primary_key # type: str | Tuple[str]
         self.table_description = getattr(meta, "table_description", "")  # type: str
-        self.pk = None  # type: fields.Field  # type: ignore
-        self.db_pk_field = ""  # type: str
+        self.pk = None  # type: fields.Field | Tuple[fields.Field]
+        self.db_pk_field = ""  # type: str | Tuple[str]
         self.filters = {}
 
     def _get_together(self, meta, together: str):
@@ -71,9 +79,20 @@ class MetaInfo:
         # return without validation, validation will be done further in the code
         return _together
 
+    def in_primarykey(self, field_name):
+        if isinstance(self.primary_key, str):
+            return self.primary_key == field_name
+        elif isinstance(self.primary_key, (tuple, Iterable)):
+            return field_name in self.primary_key
+        return False
+
     def finalise_pk(self) -> None:
-        self.pk = self.fields_map[self.pk_attr]
-        self.db_pk_field = self.pk.db_field or self.pk_attr
+        if isinstance(self.primary_key, str):
+            self.pk = self.fields_map[self.primary_key]
+            self.db_pk_field = self.pk.db_field or self.primary_key
+        elif isinstance(self.primary_key, (list, tuple)):
+            self.pk = tuple(map(lambda x: self.fields_map[x], self.primary_key))
+            self.db_pk_field = tuple(map(lambda idx, x: x.db_field or self.primary_key[idx], enumerate(self.pk)))
 
     def finalize_filters(self):
         for field_name, db_field in self.fields_db_projection.items():
@@ -88,9 +107,9 @@ class MetaInfo:
         """
         Finalise the model after it had been fully loaded.
         """
-        if not self.abstract and not self.pk_attr:
+        if not self.abstract and not self.primary_key:
             raise Exception('model must have pk or be abstract.')
-        if self.pk_attr:
+        if self.primary_key:
             self.finalise_pk()
         self.finalize_filters()
         self.finalise_fields()
@@ -148,17 +167,17 @@ class ModelMeta(type):
                 continue
             fields_map.update(deepcopy(_meta.fields_map))
             fields_db_projection.update(deepcopy(_meta.fields_db_projection))
-            if _meta.pk_attr:
+            if _meta.primary_key:
                 if pk_attr != None:
                     raise Exception('duplicated pk not allowed.')
                 else:
-                    pk_attr = _meta.pk_attr
+                    pk_attr = _meta.primary_key
 
         meta.fields_map = fields_map
         meta.fields_db_projection = fields_db_projection
         if not fields_map:
             meta.abstract = True
-        meta.pk_attr = pk_attr or ""
+        meta.primary_key = pk_attr or ""
 
         attrs["_meta"] = meta
         new_class = super().__new__(mcs, name, bases, attrs)  # type: "Model"  # type: ignore
@@ -291,11 +310,22 @@ class Model(metaclass=ModelMeta):
 
     @property
     def pk(self):
-        return getattr(self, self._meta.pk_attr)
+        primary_key = self._meta.primary_key
+        if isinstance(primary_key, str):
+            return getattr(self, self._meta.primary_key)
+        elif isinstance(primary_key, tuple):
+            return tuple(map(lambda x: getattr(self, x), primary_key))
 
     @pk.setter
     def pk(self, value):
-        setattr(self, self._meta.pk_attr, value)
+        primary_key = self._meta.primary_key
+        if isinstance(primary_key, str):
+            setattr(self, primary_key, value)
+        elif isinstance(primary_key, tuple):
+            assert isinstance(value, (list, tuple, Iterable))
+            assert len(primary_key) == len(value)
+            for k, v in zip(primary_key, value):
+                setattr(self, k, v)
 
     def _auto_values(self):
         for field in self._meta.auto_fields:

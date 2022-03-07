@@ -16,6 +16,7 @@ class BaseTableSchemaGenerator:
     TABLE_RENAME_TEMPLATE = 'ALTER TABLE "{table_name}" RENAME TO "{new_table_name}";'
 
     FIELD_TEMPLATE = '"{name}" {type} {nullable} {unique}{primary}{comment}'
+    PRIMARY_KEY_TEMPLATE = 'PRIMARY KEY ({primary_keys})'
     INDEX_CREATE_TEMPLATE = 'CREATE INDEX {exists}"{index_name}" ON "{table_name}" ({fields});'
     UNIQUE_CONSTRAINT_CREATE_TEMPLATE = 'CONSTRAINT "{index_name}" UNIQUE ({fields})'
 
@@ -74,7 +75,7 @@ class BaseTableSchemaGenerator:
             db_field = meta.fields_db_projection[name]
             nullable = "NOT NULL" if not field.null else ""
             unique = "UNIQUE" if field.unique else ""
-            is_pk = field.pk
+            is_pk = field.pk or name == meta.primary_key
             field_type = self.FIELD_TYPE_MAP[type(field).__name__]
             if callable(field_type):
                 field_type = field_type(field)
@@ -84,12 +85,17 @@ class BaseTableSchemaGenerator:
                 name=db_field,
                 type=field_type,
                 nullable=nullable,
-                unique="" if field.pk else unique,
+                unique="" if is_pk else unique,
                 comment= "",
                 primary=" PRIMARY KEY" if is_pk else "",
             ).strip()
             fields_sql.append(sql)
-        
+
+        db_pk_field = meta.db_pk_field
+        if isinstance(db_pk_field, tuple):
+            sql = self.PRIMARY_KEY_TEMPLATE.format(primary_keys=', '.join(db_pk_field))
+            fields_sql.append(sql)
+
         for unique_together_list in meta.unique_together:
             field_names = unique_together_list
             sql = self.UNIQUE_CONSTRAINT_CREATE_TEMPLATE.format(

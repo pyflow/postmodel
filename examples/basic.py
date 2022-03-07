@@ -27,7 +27,7 @@ class Book(models.Model):
         return self.name
 
 async def run():
-    await Postmodel.init('postgres://postgres@localhost:54320/test_db', modules=[__name__])
+    await Postmodel.init('postgres://postgres@localhost:5432/test_db', modules=[__name__])
     await Postmodel.generate_schemas()
 
     await Event.all().delete()

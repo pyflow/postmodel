@@ -33,17 +33,17 @@ async def test_init_2(db_url):
         Postmodel.DATABASE_CLASS['redisql'] = ('postmodel.sqldb.postgres', 'RedisqlEngine')
         await Postmodel.init(db_url.replace('postgres://', 'redisql://'), modules=[__name__])
     with pytest.raises(ConfigurationError):
-        await Postmodel.init(db_url.replace('54320', 'abcd'), modules=[__name__])
-    
+        await Postmodel.init(db_url.replace('5432', 'abcd'), modules=[__name__])
+
     with pytest.raises(DBConnectionError):
         await Postmodel.init('postgres://postgres@127.0.0.1/test_db', modules=[__name__])
-    
+
     current_module = sys.modules[__name__]
     setattr(current_module, '__models__', 'Foo')
 
     with pytest.raises(ConfigurationError):
         await Postmodel.init(db_url, modules=[__name__])
-    
+
     setattr(current_module, '__models__', ["Foo"])
     await Postmodel.init(db_url, modules=[__name__])
     assert len(Postmodel._databases) == 1

@@ -57,10 +57,10 @@ async def test_database_1(db_url):
 async def test_database_2():
     config = {
         'username': 'postgres',
-        'password': '',
+        'password': 'postgres',
         'db_path': 'test_db_2',
         'hostname': '127.0.0.1',
-        'port': 54320
+        'port': 5432
     }
     db = PostgresEngine('test', config=config)
     await db.db_delete()
