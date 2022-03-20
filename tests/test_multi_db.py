@@ -23,5 +23,9 @@ async def test_multi_db_1(db_url, db_url2):
     assert len(Postmodel._databases) == 2
     assert Postmodel._inited == True
     await Postmodel.generate_schemas()
+    mapper = Postmodel.get_mapper(Foo2)
+    await mapper.delete_table()
+    mapper = Postmodel.get_mapper(Book2)
+    await mapper.delete_table()
     await Postmodel.close()
 

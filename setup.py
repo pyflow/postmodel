@@ -11,6 +11,9 @@ setup(
         "contextvars>=2.4;python_version<'3.7'",
     ],
     extras_require={
-
+        'dev':[
+            "pytest",
+            "pytest-asyncio"
+        ]
     },
 )

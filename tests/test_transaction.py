@@ -57,4 +57,7 @@ async def test_transaction_1(db_url):
     foo = await Foo.filter(foo_id__lt = 20)
     assert len(foo) == 4
 
+    await Foo.all().delete()
+    mapper = Postmodel.get_mapper(Foo)
+    await mapper.delete_table()
     await Postmodel.close()

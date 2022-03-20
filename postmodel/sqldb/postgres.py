@@ -448,6 +448,8 @@ class PostgresEngine(BaseDatabaseEngine):
                 await asyncio.wait_for(self._pool.close(), 10)
             except asyncio.TimeoutError:  # pragma: nocoverage
                 self._pool.terminate()
+            finally:
+                self._pool.terminate()
             self._pool = None
 
     async def db_create(self) -> None:

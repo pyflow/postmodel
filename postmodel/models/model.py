@@ -168,7 +168,7 @@ class ModelMeta(type):
             fields_map.update(deepcopy(_meta.fields_map))
             fields_db_projection.update(deepcopy(_meta.fields_db_projection))
             if _meta.primary_key:
-                if pk_attr != None:
+                if pk_attr:
                     raise Exception('duplicated pk not allowed.')
                 else:
                     pk_attr = _meta.primary_key
