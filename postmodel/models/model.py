@@ -92,7 +92,7 @@ class MetaInfo:
             self.db_pk_field = self.pk.db_field or self.primary_key
         elif isinstance(self.primary_key, (list, tuple)):
             self.pk = tuple(map(lambda x: self.fields_map[x], self.primary_key))
-            self.db_pk_field = tuple(map(lambda idx, x: x.db_field or self.primary_key[idx], enumerate(self.pk)))
+            self.db_pk_field = tuple(map(lambda x: x[1].db_field or self.primary_key[x[0]], enumerate(self.pk)))
 
     def finalize_filters(self):
         for field_name, db_field in self.fields_db_projection.items():
@@ -146,14 +146,14 @@ class ModelMeta(type):
         fields_map = {}
         fields_db_projection = {}
 
-        pk_attr = None
+        pk_attr = meta.primary_key
 
         for key, value in attrs.items():
             if isinstance(value, Field):
                 fields_map[key] = value
                 value.model_field_name = key
                 if value.pk:
-                    if pk_attr != None:
+                    if pk_attr:
                         raise Exception('duplicated pk not allowed.')
                     pk_attr = key
                 fields_db_projection[key] = value.db_field or key
