@@ -19,6 +19,7 @@ from .common import (
         PikaTableFilters,
         FunctionResolve)
 from pypika import Parameter
+from pypika import Criterion
 from pypika import Table, PostgreSQLQuery
 from pypika import functions as fn
 from pypika.terms import EmptyCriterion
@@ -106,6 +107,8 @@ class PostgresMapper(BaseDatabaseMapper):
         elif isinstance(db_pk_field, (tuple, Iterable)):
             for idx, pk_field in enumerate(db_pk_field):
                 primary_key_params.append(self.pika_table[pk_field] == self.parameter(idx))
+        if len(primary_key_params) > 1:
+            primary_key_params = [Criterion.all(primary_key_params)]
         self.delete_sql = str(
             PostgreSQLQuery.from_(self.pika_table).where(
                 *primary_key_params

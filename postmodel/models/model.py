@@ -2,6 +2,7 @@ from copy import copy, deepcopy
 from collections.abc import Iterable
 
 from postmodel.exceptions import ConfigurationError, OperationalError, StaleObjectError
+from postmodel.exceptions import PrimaryKeyIntegrityError
 from postmodel.main import Postmodel
 from collections import OrderedDict
 from .query import QuerySet, FilterBuilder
@@ -360,6 +361,20 @@ class Model(metaclass=ModelMeta):
         return QuerySet(cls)
 
     @classmethod
+    def check_primary_key(cls, **kwargs):
+        primary_key = cls._meta.primary_key
+        if isinstance(primary_key, str):
+            if primary_key not in kwargs:
+                raise PrimaryKeyIntegrityError(f"Primary key {primary_key} not specified.")
+        elif isinstance(primary_key, tuple):
+            lost_keys = []
+            for k in primary_key:
+                if k not in kwargs:
+                    lost_keys.append(k)
+            if len(lost_keys) > 0:
+                raise PrimaryKeyIntegrityError('Primary key "{}" needed, but not provided.'.format(','.join(lost_keys)))
+
+    @classmethod
     def get(cls, *args, **kwargs):
         """
         Fetches a single record for a Model type using the provided filter parameters.
@@ -371,6 +386,7 @@ class Model(metaclass=ModelMeta):
         :raises MultipleObjectsReturned: If provided search returned more than one object.
         :raises DoesNotExist: If object can not be found.
         """
+        cls.check_primary_key(**kwargs)
         return QuerySet(cls).get(*args, **kwargs)
 
     @classmethod
@@ -382,6 +398,7 @@ class Model(metaclass=ModelMeta):
 
             user = await User.get_or_none(username="foo")
         """
+        cls.check_primary_key(**kwargs)
         return QuerySet(cls).filter(*args, **kwargs).first()
 
 

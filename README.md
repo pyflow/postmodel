@@ -1,6 +1,4 @@
 # postmodel
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fzeaphoo%2Fpostmodel.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fzeaphoo%2Fpostmodel?ref=badge_shield)
-
 
 ## Introduction
 
@@ -112,6 +110,3 @@ Please have a look at the `Contribution Guide <docs/CONTRIBUTING.md>`_
 ## License
 
 This project is licensed under the MIT License - see the `LICENSE <LICENSE>`_ file for details
-
-
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fzeaphoo%2Fpostmodel.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fzeaphoo%2Fpostmodel?ref=badge_large)

@@ -28,6 +28,11 @@ class ParamsError(BaseORMException):
     The ParamsError is raised when function can not be run with given parameters
     """
 
+class PrimaryKeyIntegrityError(BaseORMException):
+    """
+    The PrimaryKeyIntegrityError is raised when only parts of multi primay keys provided
+    """
+
 
 class ConfigurationError(BaseORMException):
     """

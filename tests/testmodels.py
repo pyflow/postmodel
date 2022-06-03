@@ -10,6 +10,20 @@ class Foo(models.Model):
     class Meta:
         table = "foo_mapper"
 
+class MultiPrimaryFoo(models.Model):
+    foo_id = models.IntField()
+    name = models.CharField(max_length=255)
+    tag = models.CharField(max_length=128)
+    date = models.DateField()
+    updated = models.DatetimeField(auto_now=True)
+    created = models.DatetimeField(auto_now_add=True)
+    class Meta:
+        table = "multi_primary_foo"
+        primary_key = ('foo_id', 'name')
+        unique_together = ('name', 'date')
+        indexes = ('name', 'tag')
+
+
 class Book(models.Model):
     id = models.IntField(pk=True)
     name = models.CharField(max_length=255, index=True)

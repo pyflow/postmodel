@@ -6,12 +6,14 @@ from postmodel.exceptions import (
     StaleObjectError,
     OperationalError,
     DoesNotExist,
-    MultipleObjectsReturned)
+    MultipleObjectsReturned,
+    PrimaryKeyIntegrityError)
 import asyncio
 from postmodel.models import QueryExpression, Q
 from postmodel.models import functions as fn
 from tests.testmodels import (Foo, Book,
-    CharFieldsModel)
+    CharFieldsModel, MultiPrimaryFoo)
+from datetime import datetime, date
 
 @pytest.mark.asyncio
 async def test_api_1(db_url):
@@ -199,3 +201,20 @@ async def test_api_updates(db_url):
     with pytest.raises(Exception):
         await m.save()
     await Postmodel.close()
+
+@pytest.mark.asyncio
+async def test_api_multi_1(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
+    mapper = Postmodel.get_mapper(MultiPrimaryFoo)
+    await mapper.delete_table()
+    await Postmodel.generate_schemas()
+    foo = MultiPrimaryFoo(foo_id=1, name="n1", tag="n", date=date.today())
+    await foo.save()
+    f = await MultiPrimaryFoo.get_or_none(foo_id=1, name="n1")
+    assert f.foo_id == 1
+    assert f.name == "n1"
+    f2 = await MultiPrimaryFoo.get_or_none(foo_id=1, name="n2")
+    assert f2 == None
+
+    with pytest.raises(PrimaryKeyIntegrityError):
+        f2 = await MultiPrimaryFoo.get_or_none(foo_id=1)
