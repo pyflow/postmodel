@@ -420,6 +420,18 @@ class Model(metaclass=ModelMeta):
         return QuerySet(cls).filter(*args, **kwargs).first()
 
 
+    @classmethod
+    def load(cls, **kwargs):
+        """
+        Load a single record for a Model type using the provided primary key(s) or None.
+
+        .. code-block:: python3
+
+            user = await User.load(user_id="foo")
+        """
+        cls.check_primary_key(**kwargs)
+        return QuerySet(cls).filter(**kwargs).first()
+
     async def save(self, update_fields = None, force=False) -> int:
         changed = self.changed()
         if len(changed) == 0:

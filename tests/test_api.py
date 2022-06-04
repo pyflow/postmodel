@@ -211,6 +211,13 @@ async def test_api_single_primary_1(db_url):
     foo = Foo(foo_id=1, name="n1", tag="n", memo="")
     await foo.save()
 
+    with pytest.raises(PrimaryKeyIntegrityError):
+        f = await Foo.load()
+
+    f = await Foo.load(foo_id = 1)
+    assert f.name == 'n1'
+    assert f.tag == 'n'
+
     with pytest.raises(PrimaryKeyChangedError):
         foo.foo_id = 2
     await Postmodel.close()
@@ -242,7 +249,14 @@ async def test_api_multi_1(db_url):
     foo.tag = 'tag'
     await foo.save()
 
+    with pytest.raises(PrimaryKeyIntegrityError):
+        f = await MultiPrimaryFoo.load(foo_id=1)
+
     f = await MultiPrimaryFoo.get_or_none(foo_id=1, name="n1")
+    assert f.tag == 'tag'
+    assert f == foo
+
+    f = await MultiPrimaryFoo.load(foo_id=1, name="n1")
     assert f.tag == 'tag'
     assert f == foo
 
