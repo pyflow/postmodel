@@ -239,6 +239,13 @@ async def test_api_multi_1(db_url):
     foo = MultiPrimaryFoo(foo_id=1, name="n1", tag="n", date=date.today())
     await foo.save()
 
+    foo.tag = 'tag'
+    await foo.save()
+
+    f = await MultiPrimaryFoo.get_or_none(foo_id=1, name="n1")
+    assert f.tag == 'tag'
+    assert f == foo
+
     with pytest.raises(PrimaryKeyChangedError):
         foo.foo_id = 2
 
