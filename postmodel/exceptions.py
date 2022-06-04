@@ -33,6 +33,11 @@ class PrimaryKeyIntegrityError(BaseORMException):
     The PrimaryKeyIntegrityError is raised when only parts of multi primay keys provided
     """
 
+class PrimaryKeyChangedError(BaseORMException):
+    """
+    The PrimaryKeyChangedError is raised when try to modify the value of primary key.
+    """
+
 
 class ConfigurationError(BaseORMException):
     """

@@ -247,6 +247,9 @@ class PostgresMapper(BaseDatabaseMapper):
             for idx, pk_field in enumerate(db_pk_field):
                 primary_query_params.append(table[pk_field] == self.parameter(count+idx))
 
+        if len(primary_query_params) > 1:
+            primary_query_params = [Criterion.all(primary_query_params)]
+
         query = query.where(*primary_query_params)
         values.extend(self._get_primary_key_values(instance))
         count += 1

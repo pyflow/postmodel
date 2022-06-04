@@ -1,7 +1,7 @@
 
 from postmodel import models
 import pytest
-from postmodel.exceptions import OperationalError, ConfigurationError
+from postmodel.exceptions import OperationalError, ConfigurationError, PrimaryKeyChangedError
 from tests.testmodels import MultiPrimaryFoo
 
 def test_model_1():
@@ -48,12 +48,13 @@ async def test_model_2():
     assert foo._saved_in_db == False
     with pytest.raises(OperationalError):
         await foo.delete()
-    foo.pk = 2
-    assert foo.id == 2
-    assert hash(foo) == hash(2)
+    with pytest.raises(PrimaryKeyChangedError):
+        foo.pk = 2
+
+    assert hash(foo) == hash(1)
 
     foo2 = Foo(id=2, content="2")
-    assert foo == foo2
+    assert foo != foo2
     assert foo != "hello"
 
     class FooNoPK(models.Model):

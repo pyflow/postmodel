@@ -2,7 +2,10 @@ from copy import copy, deepcopy
 from collections.abc import Iterable
 
 from postmodel.exceptions import ConfigurationError, OperationalError, StaleObjectError
-from postmodel.exceptions import PrimaryKeyIntegrityError
+from postmodel.exceptions import (
+    PrimaryKeyChangedError,
+    PrimaryKeyIntegrityError
+)
 from postmodel.main import Postmodel
 from collections import OrderedDict
 from .query import QuerySet, FilterBuilder
@@ -14,6 +17,7 @@ import json
 
 _underscorer1 = re.compile(r'(.)([A-Z][a-z]+)')
 _underscorer2 = re.compile('([a-z0-9])([A-Z])')
+
 
 def camel_to_snake(s):
     """
@@ -309,6 +313,22 @@ class Model(metaclass=ModelMeta):
             return True
         return False
 
+    def __setattr__(self, name, val):
+        primary_key = self._meta.primary_key
+        old_val = getattr(self, name, None)
+        isprimary = False
+        if isinstance(primary_key, str):
+            if name == primary_key and old_val != None:
+                isprimary = True
+        elif isinstance(primary_key, tuple):
+            if name in primary_key:
+                isprimary = True
+
+        if isprimary and old_val != None:
+            raise PrimaryKeyChangedError(f'"{name}" is primary key, can not be changed.')
+        else:
+            super().__setattr__(name, val)
+
     @property
     def pk(self):
         primary_key = self._meta.primary_key
@@ -386,7 +406,6 @@ class Model(metaclass=ModelMeta):
         :raises MultipleObjectsReturned: If provided search returned more than one object.
         :raises DoesNotExist: If object can not be found.
         """
-        cls.check_primary_key(**kwargs)
         return QuerySet(cls).get(*args, **kwargs)
 
     @classmethod
@@ -398,7 +417,6 @@ class Model(metaclass=ModelMeta):
 
             user = await User.get_or_none(username="foo")
         """
-        cls.check_primary_key(**kwargs)
         return QuerySet(cls).filter(*args, **kwargs).first()
 
 

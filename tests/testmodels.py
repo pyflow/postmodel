@@ -8,7 +8,7 @@ class Foo(models.Model):
     tag = models.CharField(max_length=128)
     memo = models.TextField()
     class Meta:
-        table = "foo_mapper"
+        table = "single_primary_foo"
 
 class MultiPrimaryFoo(models.Model):
     foo_id = models.IntField()

@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime, date, timedelta
 import json
 import uuid
+import time
 
 from tests.testmodels import (
     IntFieldsModel,
@@ -68,6 +69,7 @@ def test_datatime_field():
     assert model.datetime_auto == None
     assert model.datetime_add == None
     dt = datetime.utcnow()
+    time.sleep(1)
     fields_map['datetime_auto'].auto_value(model)
     fields_map['datetime_add'].auto_value(model)
     assert model.datetime_auto > dt
@@ -80,7 +82,7 @@ def test_date_field():
     assert field.to_python_value(None) == None
     dt = date.today()
     assert field.to_python_value(dt) == dt
-    assert field.to_python_value('2020-01-06') == date(2020, 1, 6) 
+    assert field.to_python_value('2020-01-06') == date(2020, 1, 6)
 
 def test_timedelta_field():
     model = TimeDeltaFieldsModel(id=1, timedelta=1000000)

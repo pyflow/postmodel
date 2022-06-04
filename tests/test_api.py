@@ -7,7 +7,9 @@ from postmodel.exceptions import (
     OperationalError,
     DoesNotExist,
     MultipleObjectsReturned,
-    PrimaryKeyIntegrityError)
+    PrimaryKeyIntegrityError,
+    PrimaryKeyChangedError
+)
 import asyncio
 from postmodel.models import QueryExpression, Q
 from postmodel.models import functions as fn
@@ -191,15 +193,26 @@ async def test_api_updates(db_url):
     m = await Book.get(id=1)
     assert m.description == 'third description'
     assert m.data_ver == 2
-    m.pk = 3
-    with pytest.raises(StaleObjectError):
-        await m.save()
-    with pytest.raises(StaleObjectError):
-        await m.save()
+    with pytest.raises(PrimaryKeyChangedError):
+        m.pk = 3
 
     m = Book(id=1, name="book1", description="should not in database.")
     with pytest.raises(Exception):
         await m.save()
+    await Postmodel.close()
+
+@pytest.mark.asyncio
+async def test_api_single_primary_1(db_url):
+    await Postmodel.init(db_url, modules=[__name__])
+    mapper = Postmodel.get_mapper(Foo)
+    await mapper.delete_table()
+    await Postmodel.generate_schemas()
+
+    foo = Foo(foo_id=1, name="n1", tag="n", memo="")
+    await foo.save()
+
+    with pytest.raises(PrimaryKeyChangedError):
+        foo.foo_id = 2
     await Postmodel.close()
 
 @pytest.mark.asyncio
@@ -216,5 +229,19 @@ async def test_api_multi_1(db_url):
     f2 = await MultiPrimaryFoo.get_or_none(foo_id=1, name="n2")
     assert f2 == None
 
-    with pytest.raises(PrimaryKeyIntegrityError):
-        f2 = await MultiPrimaryFoo.get_or_none(foo_id=1)
+    f = await MultiPrimaryFoo.get_or_none(foo_id=1, name="n1")
+    assert f.foo_id == 1
+    await f.delete()
+
+    f = await MultiPrimaryFoo.get_or_none(foo_id=1, name="n1")
+    assert f == None
+
+    foo = MultiPrimaryFoo(foo_id=1, name="n1", tag="n", date=date.today())
+    await foo.save()
+
+    with pytest.raises(PrimaryKeyChangedError):
+        foo.foo_id = 2
+
+    with pytest.raises(PrimaryKeyChangedError):
+        foo.name = "n2"
+    await Postmodel.close()
