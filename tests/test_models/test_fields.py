@@ -15,13 +15,14 @@ from tests.testmodels import (
 )
 
 from postmodel.models.fields import (
+    BinaryField,
     CharField,
     DecimalField,
     DatetimeField,
     UUIDField
 )
 
-from postmodel.exceptions import ConfigurationError
+from postmodel.exceptions import ConfigurationError, FieldValueError
 
 def test_int_field():
     model = IntFieldsModel(id=1, intnum=10)
@@ -118,3 +119,14 @@ def test_uuid_field():
 
     assert field.to_db_value(None) == None
     assert field.to_db_value(v) == str(v)
+
+def test_binary_field():
+    f = BinaryField()
+    assert f.to_python_value(None) == None
+    assert f.to_python_value(b'xxx') == b'xxx'
+
+    assert f.to_db_value(None) == None
+    assert f.to_db_value(b'hello') == bytes('hello', 'ascii')
+    assert f.to_db_value('hello') == bytes('hello', 'ascii')
+    with pytest.raises(FieldValueError):
+        assert f.to_db_value(10)

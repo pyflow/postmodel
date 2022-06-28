@@ -10,7 +10,7 @@ from uuid import UUID
 
 import ciso8601
 
-from postmodel.exceptions import ConfigurationError, NoValuesFetched, OperationalError
+from postmodel.exceptions import ConfigurationError, NoValuesFetched, OperationalError, FieldValueError
 
 # Doing this we can replace json dumps/loads with different implementations
 JSON_DUMPS = functools.partial(json.dumps, separators=(",", ":"))
@@ -345,4 +345,12 @@ class BinaryField(Field):  # type: ignore
     indexable = False
 
     def __init__(self, **kwargs) -> None:
-        super().__init__(str, **kwargs)
+        super().__init__(bytes, **kwargs)
+
+    def to_db_value(self, value: Any) -> Any:
+        if value is None or type(value) == self.type:  # pylint: disable=C0123
+            return value
+        if isinstance(value, str):
+            return self.type(value, encoding='utf-8')
+        else:
+            raise FieldValueError(f'BinaryField require str, bytes type, provided value type {type(value)}, content: {value}')

@@ -23,6 +23,11 @@ class FieldError(BaseORMException):
     """
 
 
+class FieldValueError(BaseORMException):
+    """
+    The FieldError exception is raised when there is a problem with a model field.
+    """
+
 class ParamsError(BaseORMException):
     """
     The ParamsError is raised when function can not be run with given parameters
