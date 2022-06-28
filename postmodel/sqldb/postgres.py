@@ -251,8 +251,9 @@ class PostgresMapper(BaseDatabaseMapper):
             primary_query_params = [Criterion.all(primary_query_params)]
 
         query = query.where(*primary_query_params)
-        values.extend(self._get_primary_key_values(instance))
-        count += 1
+        primary_values = self._get_primary_key_values(instance)
+        values.extend(primary_values)
+        count += len(primary_values)
         for k, v in condition_fields:
             query = query.where(table[k] == self.parameter(count))
             values.append(v)
