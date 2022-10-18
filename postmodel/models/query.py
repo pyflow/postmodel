@@ -234,7 +234,6 @@ class QuerySet:
 
         for key, value in kwargs.items():
             queryset._expressions.append(QueryExpression(**{key: value}))
-
         return queryset
 
     def filter(self, *args, **kwargs):
