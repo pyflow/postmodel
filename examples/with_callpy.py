@@ -1,18 +1,18 @@
 # pylint: disable=E0401,E0611
 import logging
 
-from callflow import CallFlow
-from callflow.web import response
+from callpy import CallPy
+from callpy.web import response
 
 from postmodel import models
-from postmodel.ext.callflow import register_postmodel
+from postmodel.ext.callpy import register_postmodel
 from basepy.asynclog import logger
 
 logger.add('stdout')
 
 logging.basicConfig(level=logging.DEBUG)
 
-app = CallFlow(__name__)
+app = CallPy(__name__)
 
 class Users(models.Model):
     id = models.IntField(pk=True)

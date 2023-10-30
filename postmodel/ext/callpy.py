@@ -1,14 +1,14 @@
 import logging
 from typing import Dict, List, Optional
 
-from callflow import CallFlow  # pylint: disable=E0401
+from callpy import CallPy  # pylint: disable=E0401
 
 from postmodel import Postmodel
 from basepy.asynclog import logger
 
 
 def register_postmodel(
-    app: CallFlow,
+    app: CallPy,
     default_db_url,
     extra_db_urls = {},
     modules: Optional[Dict[str, List[str]]] = None,
@@ -16,14 +16,14 @@ def register_postmodel(
 ) -> None:
     """
     Registers ``before_server_start`` and ``after_server_stop`` hooks to set-up and tear-down
-    Postmodel inside a CallFlow webserver.
+    Postmodel inside a CallPy webserver.
 
     You can configure using ``(db_url, modules)``.
 
     Parameters
     ----------
     app:
-        CallFlow app..
+        CallPy app..
     db_url:
         Use a DB_URL string. See :ref:`db_url`
     modules:
