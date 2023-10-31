@@ -10,6 +10,13 @@ class Foo(models.Model):
     class Meta:
         table = "single_primary_foo"
 
+class FooJsonModel(models.Model):
+    foo_id = models.IntField(pk=True)
+    value =  models.JSONField()
+
+    class Meta:
+        table = "foo_json"
+
 class MultiPrimaryFoo(models.Model):
     foo_id = models.IntField()
     name = models.CharField(max_length=255)

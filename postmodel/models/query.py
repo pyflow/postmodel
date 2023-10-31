@@ -41,6 +41,9 @@ class FilterBuilder:
     @staticmethod
     def get_filters_for_field(field, field_name: str, db_field: str) -> Dict[str, dict]:
         actual_field_name = field_name
+        field_type = field.__class__.__name__
+        if field_type == 'JSONField':
+            return {}
         return {
             field_name: {
                 "field": actual_field_name,

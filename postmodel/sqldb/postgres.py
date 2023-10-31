@@ -145,14 +145,18 @@ class PostgresMapper(BaseDatabaseMapper):
         else:
             for key, value in expr.filters.items():
                 fn, value = FunctionResolve.resolve_value(value, self.pika_table)
-                param = fn if fn else self.parameter(param_index)
+                param = fn if fn else param_index
 
                 sub_criterion, value = self.filters.get_criterion(key, param, value)
                 criterion = self._join_criterion(criterion, sub_criterion, expr.join_type)
 
                 if value != None:
-                    param_index += 1
-                    values.append(value)
+                    if (key.endswith('__has_keys') or key.endswith('__has_anykeys')) and isinstance(value, (list, tuple)):
+                        param_index += len(value)
+                        values.extend(value)
+                    else:
+                        param_index += 1
+                        values.append(value)
 
         if expr._is_negated and not isinstance(criterion, EmptyCriterion):
                 criterion = operator.invert(criterion)
@@ -383,6 +387,9 @@ class PostgresMapper(BaseDatabaseMapper):
 
     async def query(self, queryset):
         sql, values= self._get_query_sql(queryset)
+
+        # print('query', sql, values)
+
         _, rows = await self.db.execute_query(sql, values)
         if queryset._expect_single:
             if len(rows) > 1:
