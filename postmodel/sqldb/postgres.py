@@ -15,6 +15,7 @@ from postmodel.exceptions import (OperationalError,
 from postmodel.main import Postmodel
 from postmodel.models.query import QueryExpression
 from .common import (
+        get_json_field,
         BaseTableSchemaGenerator,
         PikaTableFilters,
         FunctionResolve)
@@ -377,7 +378,10 @@ class PostgresMapper(BaseDatabaseMapper):
 
         if queryset._orderings:
             for field_name, order in queryset._orderings:
-                query = query.orderby(getattr(table, field_name), order=order)
+                if '.' in field_name:
+                    query = query.orderby(get_json_field(table, field_name), order=order)
+                else:
+                    query = query.orderby(getattr(table, field_name), order=order)
 
         if queryset._offset:
             query = query.offset(queryset._offset)

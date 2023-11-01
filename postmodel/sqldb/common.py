@@ -178,6 +178,18 @@ class JSONCriterion(BasicCriterion):
         c = criterion
         return cls(c.comparator, c.left, c.right, c.alias)
 
+    def get_json_value(self, key_or_index: Union[str, int]) -> "JSONCriterion":
+        return JSONCriterion(JSONOperators.GET_JSON_VALUE, self, self.wrap_constant(key_or_index))
+
+    def get_text_value(self, key_or_index: Union[str, int]) -> "JSONCriterion":
+        return JSONCriterion(JSONOperators.GET_TEXT_VALUE, self, self.wrap_constant(key_or_index))
+
+    def get_path_json_value(self, path_json: str) -> "JSONCriterion":
+        return JSONCriterion(JSONOperators.GET_PATH_JSON_VALUE, self, self.wrap_json(path_json))
+
+    def get_path_text_value(self, path_json: str) -> "JSONCriterion":
+        return JSONCriterion(JSONOperators.GET_PATH_TEXT_VALUE, self, self.wrap_json(path_json))
+
     def has_key(self, other: Any) -> "JSONCriterion":
         return JSONCriterion(JSONOperators.HAS_KEY, self, self.wrap_json(other))
 
@@ -241,6 +253,17 @@ def encode_json_value(value):
         return SqlType("jsonb"), json.dumps(value)
     else:
         raise Exception(f'unsupported json value {value} to encode')
+
+
+def get_json_field(table, field_name):
+    names = field_name.split('.')
+    name = names[0]
+    attributes = names[1:]
+    field = JSONField.create(getattr(table, name))
+    for attr in attributes:
+        field = field.get_json_value(attr)
+
+    return field
 
 
 class JSONFilterFunctions:

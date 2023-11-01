@@ -275,7 +275,7 @@ class QuerySet:
 
         .. code-block:: python3
 
-            .order_by('name', '-tournament__name')
+            .order_by('name', '-tournament.name')
 
         Supports ordering by related models too.
         """
@@ -290,7 +290,7 @@ class QuerySet:
                 field_name = ordering
 
             if not (
-                field_name.split("__")[0] in self.fields
+                field_name.split(".")[0] in self.fields
             ):
                 raise FieldError(f"Unknown field {field_name} for model {self.model_class.__name__}")
             new_ordering.append((field_name, order_type))
