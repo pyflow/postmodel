@@ -214,7 +214,7 @@ class QuerySet:
     def __init__(self, model_class):
         self.model_class = model_class
         self.fields = model_class._meta.db_fields
-        self.db_name = "default"
+        self.db_name = model_class._meta.db_name
 
         self._expect_single = False
         self._return_single = False

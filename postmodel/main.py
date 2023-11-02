@@ -38,21 +38,21 @@ class Postmodel:
     @classmethod
     async def init(
         cls,
-        default_db_url,
+        db_url,
+        name = 'default',
         extra_db_urls = {},
         modules = [],
         _create_db = False
     ) -> None:
-        if cls._inited:
-            await cls._reset()
-
-        db_type, config, parameters = cls._parse_db_url(default_db_url)
+        db_type, config, parameters = cls._parse_db_url(db_url)
 
         db_urls = {}
         db_urls.update(extra_db_urls)
-        db_urls['default'] = default_db_url
+        db_urls[name] = db_url
 
         for key, value in db_urls.items():
+            if key in cls._databases:
+                raise Exception(f'database with name {key} already init.')
             db_type, config, parameters = cls._parse_db_url(value)
             cls._databases[key] = await cls._init_database(key, db_type, config, parameters)
             current_transaction_map[key] = ContextVar("TransactedConnection", default=None)
