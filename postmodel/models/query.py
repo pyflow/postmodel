@@ -245,7 +245,7 @@ class QuerySet:
 
         .. code-block:: python3
 
-            Team.filter(events__tournament__name='Test')
+            Team.filter(**{"events.tournament.name" : 'Test'})
 
         You can also pass QueryExpression objects to filters as args.
         """
