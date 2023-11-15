@@ -337,6 +337,11 @@ class JSONFilterFunctions:
         return field.contains(param), new_value
 
     @staticmethod
+    def contained_by(field, param=None, value=None, **kwargs):
+        value_type, new_value =  encode_json_value(value)
+        return field.contained_by(param), new_value
+
+    @staticmethod
     def starts_with(field, param=None, value=None, **kwargs):
         new_value = f'"{value}%'
         return functions.Cast(field, SqlTypes.VARCHAR).like(param), new_value
@@ -354,6 +359,7 @@ JSON_FILTER_OPERATORS = {
     'has_keys': JSONFilterFunctions.has_keys,
     'has_anykeys': JSONFilterFunctions.has_anykeys,
     'contains': JSONFilterFunctions.contains,
+    'in': JSONFilterFunctions.contained_by,
     'gte': JSONFilterFunctions.greater_equal,
     'gt': JSONFilterFunctions.greater_than,
     'lte': JSONFilterFunctions.less_equal,
