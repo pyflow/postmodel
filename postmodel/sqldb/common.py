@@ -244,7 +244,7 @@ def encode_json_value(value):
     if value == None:
         return None, None
     elif isinstance(value, bool):
-        return SqlTypes.BOOLEAN, json.dumps(value)
+        return SqlTypes.BOOLEAN, value
     elif isinstance(value, (int, float)):
         return SqlTypes.NUMERIC, value
     elif isinstance(value, str):
